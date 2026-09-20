@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.yean.common.exception.GlobalExceptionHandler,\
+com.yean.common.web.EmptyStringToNullAdvice

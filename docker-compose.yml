@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  rocketmq-namesrv:
+    image: apache/rocketmq:4.9.7
+    container_name: aftersale-rmq-namesrv
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9876 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rocketmq-broker:
+    image: apache/rocketmq:4.9.7
+    container_name: aftersale-rmq-broker
+    depends_on:
+      - rocketmq-namesrv
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+      - "10912:10912"
+    environment:
+      NAMESRV_ADDR: rocketmq-namesrv:9876
+    volumes:
+      - ./deploy/rocketmq/broker.conf:/home/rocketmq/rocketmq-4.9.7/conf/broker.conf
+    command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-4.9.7/conf/broker.conf
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 10911 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+
+  nacos:
+    image: nacos/nacos-server:v2.2.3
+    container_name: aftersale-nacos
+    environment:
+      MODE: standalone
+      JVM_XMS: 256m
+      JVM_XMX: 256m
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8848/nacos/v1/console/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  aftersale-mysql-data:
