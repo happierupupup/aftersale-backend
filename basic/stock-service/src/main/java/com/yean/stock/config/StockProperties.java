@@ -1,0 +1,18 @@
+package com.yean.stock.config;
+
+import lombok.Data;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+@Data
+@ConfigurationProperties(prefix = "stock")
+public class StockProperties {
+
+    /** Cache Aside 基础 TTL（秒），实际再加 0–300 随机防雪崩 */
+    private int cacheTtlSeconds = 300;
+
+    /**
+     * 仅本地调试：允许 body 带 username。
+     * 正式走网关时为 false，只信 X-Username / X-User-Id。
+     */
+    private boolean allowBodyUsername = false;
+}

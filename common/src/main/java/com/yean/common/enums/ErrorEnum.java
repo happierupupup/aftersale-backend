@@ -9,7 +9,7 @@ public enum ErrorEnum {
     UNAUTHORIZED(401, "未登录或登录已失效"),
     TOKEN_INVALID(401, "Token 无效"),
     TOKEN_EXPIRED(401, "Token 已过期"),
-    TOKEN_BLACKLISTED(401, "已登出"),
+    TOKEN_BLACKLISTED(401, "已登出，请重新登陆"),
     NOT_FOUND(404, "接口不存在"),
     CONFLICT(409, "操作处理中，请勿重复提交"),
     SYSTEM_ERROR(500, "系统异常"),
@@ -30,7 +30,12 @@ public enum ErrorEnum {
     DEPT_HAS_USERS(1106, "部门下仍有用户，无法删除"),
     DEPT_PARENT_NOT_FOUND(1107, "父部门不存在"),
 
-    NOTICE_NOT_FOUND(1201, "通知不存在");
+    NOTICE_NOT_FOUND(1201, "通知不存在"),
+
+    SKU_NOT_FOUND(2001, "SKU 不存在"),
+    SKU_EXISTS(2002, "SKU 已存在"),
+    STOCK_NOT_ENOUGH(2003, "库存不足"),
+    STOCK_CHANGE_CONFLICT(2004, "库存变更冲突，请重试");
 
     private final int code;
     private final String msg;

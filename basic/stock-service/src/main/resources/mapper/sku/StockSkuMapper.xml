@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yean.stock.sku.mapper.StockSkuMapper">
+
+    <resultMap id="StockSkuResultMap" type="com.yean.stock.sku.dto.StockSku">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="stock_num" property="stockNum"/>
+        <result column="version" property="version"/>
+        <result column="warn_threshold" property="warnThreshold"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="StockSkuColumns">
+        id, sku_id, sku_name, stock_num, version, warn_threshold, update_by, create_time, update_time
+    </sql>
+
+    <select id="selectBySkuId" resultMap="StockSkuResultMap">
+        SELECT <include refid="StockSkuColumns"/>
+        FROM stock_sku
+        WHERE sku_id = #{skuId}
+    </select>
+
+    <select id="selectSkuList" resultMap="StockSkuResultMap">
+        SELECT <include refid="StockSkuColumns"/>
+        FROM stock_sku
+        <where>
+            <if test="skuId != null">
+                AND sku_id = #{skuId}
+            </if>
+            <if test="skuName != null and skuName != ''">
+                AND sku_name LIKE CONCAT('%', #{skuName}, '%')
+            </if>
+        </where>
+        ORDER BY id ASC
+    </select>
+
+    <update id="casDeduct">
+        UPDATE stock_sku
+        SET stock_num = stock_num - #{changeNum},
+            version = version + 1
+        WHERE sku_id = #{skuId}
+          AND version = #{version}
+          AND stock_num &gt;= #{changeNum}
+    </update>
+
+    <update id="casRollback">
+        UPDATE stock_sku
+        SET stock_num = stock_num + #{changeNum},
+            version = version + 1
+        WHERE sku_id = #{skuId}
+          AND version = #{version}
+    </update>
+</mapper>
