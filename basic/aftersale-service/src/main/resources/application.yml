@@ -11,6 +11,10 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/aftersale_core?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
+  redis:
+    host: 127.0.0.1
+    port: 6379
+    timeout: 3s
   cloud:
     nacos:
       discovery:
@@ -18,11 +22,16 @@ spring:
         enabled: false
 
 mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.yean.aftersale
   configuration:
     map-underscore-to-camel-case: true
   global-config:
     db-config:
       id-type: auto
+
+aftersale:
+  allow-body-operator: true
 
 springdoc:
   swagger-ui:

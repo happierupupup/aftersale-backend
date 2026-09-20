@@ -6,7 +6,8 @@
 
 - **portal**：用户 / 部门 CRUD、多角色、权限校验、登录校验（不签发 Token）、写操作 Redis 锁、**站内通知**
 - **gateway**：登录签发 JWT、校验 Token、续期、登出黑名单、白名单、把用户信息注入 `X-User-*` 后转发下游
-- **stock-service**：SKU CRUD、扣减/回退（Redis 锁 + 乐观锁 + 流水幂等）、库存缓存、低于阈值打日志
+- **stock-service**：SKU 档案 + 库存扣减/回退
+- **aftersale-service**：模拟订单、申请/列表/详情、审核/驳回/撤回（状态机，无 Activiti）
 - **统一返回**：`{code, msg, data}`，错误码见 `ErrorEnum`
 
 ## 模块
@@ -60,7 +61,11 @@ aftersale-backend
 │   ├── stock/                   # 库存变动：扣减/回退/流水、operator
 │   └── config/                  # Redis、Redisson 锁、操作人解析
 │
-└── basic/aftersale-service/     # 仅 AftersaleApplication + yml，业务未写
+└── basic/aftersale-service/ …/com.yean.aftersale/
+    ├── order/                   # 模拟订单查询
+    ├── aftersale/               # 售后单：申请/审核/驳回/撤回、操作日志
+    ├── message/                 # 本地消息表 outbox（先落库，暂不发 MQ）
+    └── config/                  # Redis、Redisson 锁、操作人解析
 ```
 
 接口前缀（均经 gateway `/api/**` 转发，也可本服务端口直连）：
@@ -71,6 +76,8 @@ aftersale-backend
 | 用户 / 部门 / 通知 | `/api/user/**` `/api/dept/**` `/api/notify/**` → portal |
 | SKU 档案 | `/api/stock/sku/**` → stock-service |
 | 库存变动 | `/api/stock/deduct` `rollback` `{skuId}` `flow/list` → stock-service |
+| 模拟订单 | `/api/aftersale/order/**` → aftersale-service |
+| 售后单 | `/api/aftersale/apply` `page` `{aftersaleNo}` `approve` `reject` `withdraw` |
 
 
 ## 环境（根据自己的端口、账号密码调整配置）
@@ -90,13 +97,14 @@ aftersale-backend
 mysql -uroot -p < config-file/sql/01-init.sql
 mysql -uroot -p < config-file/sql/02-user.sql
 mysql -uroot -p < config-file/sql/03-stock.sql
+mysql -uroot -p < config-file/sql/04-aftersale.sql
 ```
 
-`01` 建三个库；`02` 建用户中心表和演示账号；`03` 建库存表和演示 SKU（1001/1002/1003）。各服务的库名、账号改了的话，同步改对应 `application.yml`。
+`01` 建三个库；`02` 用户中心；`03` 库存 SKU；`04` 模拟订单和售后表。演示订单挂在用户 id=5（精神状态良好），商家 id=2（AAA代购）。
 
 ### 2. Redis
 
-portal 写用户/部门要加锁，gateway 登出黑名单要用 Redis，库存扣减锁和 SKU 缓存也走 Redis。
+portal 写用户/部门要加锁，gateway 登出黑名单要用 Redis，库存扣减、售后单号/幂等/审核锁也走 Redis。
 
 ```bash
 redis-server
@@ -116,6 +124,7 @@ redis-cli ping    # 应返回 PONG
 2. 先启动 **portal**：运行 `com.yean.portal.PortalApplication`。
 3. 再启动 **gateway**：运行 `com.yean.gateway.GatewayApplication`。
 4. 库存：**stock-service** 运行 `com.yean.stock.StockApplication`（端口 8083）。
+5. 售后：**aftersale-service** 运行 `com.yean.aftersale.AftersaleApplication`（端口 8082）。
 
 默认 profile 是 `local`（不注册 Nacos）。要注册 Nacos 时，运行配置加上：
 
@@ -130,6 +139,7 @@ Swagger：
 - 网关：http://127.0.0.1:8080/swagger-ui.html（登录/登出是 RouterFunction，以 curl 为准）
 - 用户中心：http://127.0.0.1:8081/swagger-ui.html
 - 库存：http://127.0.0.1:8083/swagger-ui.html
+- 售后：http://127.0.0.1:8082/swagger-ui.html
 
 经网关访问业务接口时，Header 加 `Authorization: Bearer <token>`。
 
@@ -150,6 +160,11 @@ curl -X POST http://127.0.0.1:8080/api/stock/deduct \
   -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -d '{"skuId":1001,"changeNum":1,"bizNo":"AS-DEMO-001"}'
+
+# 本地直连售后（用户 id=5 申请 ORD20250920001）
+curl -X POST http://127.0.0.1:8082/api/aftersale/apply \
+  -H 'Content-Type: application/json' \
+  -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'
 ```
 
 ### 4. Docker（可选）

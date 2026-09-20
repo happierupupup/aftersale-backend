@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yean.aftersale.aftersale.mapper.AftersaleOrderMapper">
+
+    <resultMap id="AftersaleOrderResultMap" type="com.yean.aftersale.aftersale.dto.AftersaleOrder">
+        <id column="id" property="id"/>
+        <result column="aftersale_no" property="aftersaleNo"/>
+        <result column="order_no" property="orderNo"/>
+        <result column="user_id" property="userId"/>
+        <result column="merchant_id" property="merchantId"/>
+        <result column="type" property="type"/>
+        <result column="status" property="status"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="num" property="num"/>
+        <result column="amount" property="amount"/>
+        <result column="reason" property="reason"/>
+        <result column="logistics_info" property="logisticsInfo"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="refund_detail" property="refundDetail"
+                typeHandler="com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler"/>
+        <result column="process_instance_id" property="processInstanceId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="AftersaleOrderColumns">
+        id, aftersale_no, order_no, user_id, merchant_id, type, status, sku_id, sku_name, num, amount,
+        reason, logistics_info, refund_detail, process_instance_id, create_time, update_time
+    </sql>
+
+    <select id="selectByAftersaleNo" resultMap="AftersaleOrderResultMap">
+        SELECT <include refid="AftersaleOrderColumns"/>
+        FROM aftersale_order
+        WHERE aftersale_no = #{aftersaleNo}
+    </select>
+
+    <select id="selectByOrderNoAndSkuId" resultMap="AftersaleOrderResultMap">
+        SELECT <include refid="AftersaleOrderColumns"/>
+        FROM aftersale_order
+        WHERE order_no = #{orderNo}
+          AND sku_id = #{skuId}
+    </select>
+
+    <select id="selectListByQuery" resultMap="AftersaleOrderResultMap">
+        SELECT <include refid="AftersaleOrderColumns"/>
+        FROM aftersale_order
+        <where>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+            <if test="type != null">
+                AND type = #{type}
+            </if>
+            <if test="orderNo != null and orderNo != ''">
+                AND order_no = #{orderNo}
+            </if>
+            <if test="aftersaleNo != null and aftersaleNo != ''">
+                AND aftersale_no = #{aftersaleNo}
+            </if>
+            <if test="userId != null">
+                AND user_id = #{userId}
+            </if>
+            <if test="merchantId != null">
+                AND merchant_id = #{merchantId}
+            </if>
+            <if test="startTime != null">
+                AND create_time &gt;= #{startTime}
+            </if>
+            <if test="endTime != null">
+                AND create_time &lt;= #{endTime}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+</mapper>

@@ -35,7 +35,17 @@ public enum ErrorEnum {
     SKU_NOT_FOUND(2001, "SKU 不存在"),
     SKU_EXISTS(2002, "SKU 已存在"),
     STOCK_NOT_ENOUGH(2003, "库存不足"),
-    STOCK_CHANGE_CONFLICT(2004, "库存变更冲突，请重试");
+    STOCK_CHANGE_CONFLICT(2004, "库存变更冲突，请重试"),
+
+    ORDER_NOT_FOUND(3001, "订单不存在"),
+    ORDER_NOT_OWNER(3002, "不能为他人订单申请售后"),
+    ORDER_STATUS_NOT_ALLOW(3003, "订单状态不允许售后"),
+    ORDER_UNPAID(3004, "订单未支付"),
+    AFTERSALE_NUM_INVALID(3005, "售后数量超过购买数量"),
+    AFTERSALE_TYPE_INVALID(3006, "非法售后类型"),
+    AFTERSALE_NOT_FOUND(3101, "售后单不存在"),
+    AFTERSALE_STATUS_NOT_ALLOW(3102, "当前状态不允许该操作"),
+    AFTERSALE_NO_PERMISSION(3103, "无权操作该售后单");
 
     private final int code;
     private final String msg;
