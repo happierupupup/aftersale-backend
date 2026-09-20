@@ -1,0 +1,24 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+        fail-fast: false
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        - id: portal
+          uri: lb://portal
+          predicates:
+            - Path=/api/user/**,/api/dept/**,/api/notify/**
+        - id: aftersale-service
+          uri: lb://aftersale-service
+          predicates:
+            - Path=/api/aftersale/**
+        - id: stock-service
+          uri: lb://stock-service
+          predicates:
+            - Path=/api/stock/**

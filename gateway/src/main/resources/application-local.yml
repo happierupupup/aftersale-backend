@@ -1,0 +1,17 @@
+# 不要把 /api/auth/** 转到 portal，登录登出只在 gateway
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: portal
+          uri: http://127.0.0.1:8081
+          predicates:
+            - Path=/api/user/**,/api/dept/**,/api/notify/**
+        - id: aftersale-service
+          uri: http://127.0.0.1:8082
+          predicates:
+            - Path=/api/aftersale/**
+        - id: stock-service
+          uri: http://127.0.0.1:8083
+          predicates:
+            - Path=/api/stock/**

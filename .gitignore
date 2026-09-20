@@ -7,6 +7,8 @@ problem.md
 
 ### IntelliJ IDEA ###
 .idea/
+.idea/vcs.xml
+.idea/misc.xml
 *.iws
 *.iml
 *.ipr

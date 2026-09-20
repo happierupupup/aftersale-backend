@@ -6,8 +6,14 @@ package com.yean.common.enums;
 public enum ErrorEnum {
 
     PARAM_INVALID(400, "参数错误"),
+    UNAUTHORIZED(401, "未登录或登录已失效"),
+    TOKEN_INVALID(401, "Token 无效"),
+    TOKEN_EXPIRED(401, "Token 已过期"),
+    TOKEN_BLACKLISTED(401, "已登出"),
+    NOT_FOUND(404, "接口不存在"),
     CONFLICT(409, "操作处理中，请勿重复提交"),
     SYSTEM_ERROR(500, "系统异常"),
+    GATEWAY_DOWN(502, "下游服务不可用"),
 
     USER_OR_PASSWORD_ERROR(1001, "用户名或密码错误"),
     USER_DISABLED(1002, "账号已禁用"),
@@ -22,7 +28,9 @@ public enum ErrorEnum {
     DEPT_PARENT_SELF(1104, "父部门不能是自己"),
     DEPT_HAS_CHILDREN(1105, "存在子部门，无法删除"),
     DEPT_HAS_USERS(1106, "部门下仍有用户，无法删除"),
-    DEPT_PARENT_NOT_FOUND(1107, "父部门不存在");
+    DEPT_PARENT_NOT_FOUND(1107, "父部门不存在"),
+
+    NOTICE_NOT_FOUND(1201, "通知不存在");
 
     private final int code;
     private final String msg;

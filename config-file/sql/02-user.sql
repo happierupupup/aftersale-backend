@@ -7,6 +7,7 @@ USE aftersale_user;
 -- 演示账号密码均为 123456（BCrypt）
 -- ---------------------------------------------------------------------------
 
+DROP TABLE IF EXISTS sys_notify;
 DROP TABLE IF EXISTS sys_user_role;
 DROP TABLE IF EXISTS sys_user;
 DROP TABLE IF EXISTS sys_dept;
@@ -47,6 +48,20 @@ CREATE TABLE sys_user_role (
     KEY idx_role (role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户角色关系';
 
+CREATE TABLE sys_notify (
+    id          BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    user_id     BIGINT        NOT NULL COMMENT '接收用户 ID',
+    title       VARCHAR(128)  NOT NULL COMMENT '标题',
+    content     VARCHAR(1024) NOT NULL COMMENT '正文',
+    channel     VARCHAR(16)   NOT NULL DEFAULT 'INBOX' COMMENT 'INBOX 站内信 / SMS 短信 / MAIL 邮件',
+    biz_type    VARCHAR(32)   NOT NULL DEFAULT 'SYSTEM' COMMENT 'SYSTEM / AFTERSALE / STOCK',
+    read_flag   TINYINT       NOT NULL DEFAULT 0 COMMENT '0未读 1已读',
+    create_time DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_user_id (user_id),
+    KEY idx_user_read (user_id, read_flag)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户通知（站内信为主，短信/邮件仅记录）';
+
 -- 部门树
 -- 总公司
 --   ├── 运营中心
@@ -78,3 +93,7 @@ INSERT INTO sys_user_role (user_id, role) VALUES
 (3, 'WAREHOUSE'),
 (4, 'FINANCE'),
 (5, 'USER');
+
+INSERT INTO sys_notify (user_id, title, content, channel, biz_type, read_flag) VALUES
+(5, '欢迎使用售后平台', '售后进度将以站内信通知，请留意本列表。', 'INBOX', 'SYSTEM', 0),
+(5, '演示：审核通过', '您的售后单 AS202609200001 商家已同意，请按指引寄回。', 'INBOX', 'AFTERSALE', 0);
