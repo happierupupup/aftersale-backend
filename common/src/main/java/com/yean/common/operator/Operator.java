@@ -1,4 +1,4 @@
-package com.yean.aftersale.config;
+package com.yean.common.operator;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

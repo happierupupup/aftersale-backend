@@ -2,18 +2,20 @@ package com.yean.stock.inventory.service.impl;
 
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.exception.BizException;
-import com.yean.stock.config.SkuLock;
+import com.yean.common.lock.RedisBizLock;
 import com.yean.stock.sku.cache.SkuCache;
+import com.yean.stock.sku.dto.SkuDetail;
 import com.yean.stock.sku.dto.SkuVO;
-import com.yean.stock.sku.dto.StockSku;
 import com.yean.stock.sku.mapper.StockSkuMapper;
 import com.yean.stock.inventory.dto.InventoryChangeDTO;
 import com.yean.stock.inventory.dto.InventoryChangeVO;
 import com.yean.stock.inventory.dto.InventoryFlow;
 import com.yean.stock.inventory.dto.InventoryFlowQueryDTO;
 import com.yean.stock.inventory.dto.InventoryFlowVO;
+import com.yean.stock.inventory.dto.StockCount;
 import com.yean.stock.inventory.enums.InventoryFlowType;
 import com.yean.stock.inventory.mapper.InventoryFlowMapper;
+import com.yean.stock.inventory.mapper.StockCountMapper;
 import com.yean.stock.inventory.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,10 +34,12 @@ public class InventoryServiceImpl implements InventoryService {
 
     private static final int MAX_CAS_RETRY = 3;
     private static final String FLOW_SUCCESS = "SUCCESS";
+    private static final String LOCK_PREFIX = "lock:stock:";
 
     private final StockSkuMapper stockSkuMapper;
+    private final StockCountMapper stockCountMapper;
     private final InventoryFlowMapper inventoryFlowMapper;
-    private final SkuLock skuLock;
+    private final RedisBizLock redisBizLock;
     private final SkuCache skuCache;
     private final TransactionTemplate transactionTemplate;
 
@@ -55,7 +59,7 @@ public class InventoryServiceImpl implements InventoryService {
         if (cached != null) {
             return cached;
         }
-        SkuVO vo = toSkuVO(requireSku(skuId));
+        SkuVO vo = toSkuVO(requireDetail(skuId));
         skuCache.put(vo);
         return vo;
     }
@@ -74,7 +78,8 @@ public class InventoryServiceImpl implements InventoryService {
         BizException lastConflict = null;
         for (int i = 0; i < MAX_CAS_RETRY; i++) {
             try {
-                InventoryChangeVO vo = skuLock.execute(dto.getSkuId(), () -> doChangeInLock(dto, type, operator));
+                InventoryChangeVO vo = redisBizLock.execute(LOCK_PREFIX, dto.getSkuId(),
+                        () -> doChangeInLock(dto, type, operator));
                 afterChange(vo);
                 return vo;
             } catch (BizException e) {
@@ -93,14 +98,18 @@ public class InventoryServiceImpl implements InventoryService {
         if (exist != null) {
             return toChangeVO(exist, true);
         }
-        StockSku sku = requireSku(dto.getSkuId());
-        if (type == InventoryFlowType.DEDUCT && sku.getStockNum() < dto.getChangeNum()) {
+        SkuDetail detail = requireDetail(dto.getSkuId());
+        StockCount count = stockCountMapper.selectBySkuId(dto.getSkuId());
+        if (count == null) {
+            throw new BizException(ErrorEnum.SKU_NOT_FOUND);
+        }
+        if (type == InventoryFlowType.DEDUCT && count.getStockNum() < dto.getChangeNum()) {
             throw new BizException(ErrorEnum.STOCK_NOT_ENOUGH);
         }
         InventoryChangeVO vo = transactionTemplate.execute(status -> {
             int rows = type == InventoryFlowType.DEDUCT
-                    ? stockSkuMapper.casDeduct(dto.getSkuId(), sku.getVersion(), dto.getChangeNum())
-                    : stockSkuMapper.casRollback(dto.getSkuId(), sku.getVersion(), dto.getChangeNum());
+                    ? stockCountMapper.casDeduct(dto.getSkuId(), count.getVersion(), dto.getChangeNum())
+                    : stockCountMapper.casRollback(dto.getSkuId(), count.getVersion(), dto.getChangeNum());
             if (rows == 0) {
                 throw new BizException(ErrorEnum.STOCK_CHANGE_CONFLICT);
             }
@@ -119,8 +128,8 @@ public class InventoryServiceImpl implements InventoryService {
                 status.setRollbackOnly();
                 return null;
             }
-            StockSku after = stockSkuMapper.selectBySkuId(dto.getSkuId());
-            return toChangeVO(flow, after, false);
+            StockCount after = stockCountMapper.selectBySkuId(dto.getSkuId());
+            return toChangeVO(flow, after, detail.getWarnThreshold(), false);
         });
         if (vo == null) {
             InventoryFlow duplicated = inventoryFlowMapper.selectByBizNoAndType(dto.getBizNo(), type.name());
@@ -145,33 +154,35 @@ public class InventoryServiceImpl implements InventoryService {
         }
     }
 
-    private StockSku requireSku(Long skuId) {
-        StockSku sku = stockSkuMapper.selectBySkuId(skuId);
-        if (sku == null) {
+    private SkuDetail requireDetail(Long skuId) {
+        SkuDetail detail = stockSkuMapper.selectDetailBySkuId(skuId);
+        if (detail == null) {
             throw new BizException(ErrorEnum.SKU_NOT_FOUND);
         }
-        return sku;
+        return detail;
     }
 
-    private SkuVO toSkuVO(StockSku sku) {
+    private SkuVO toSkuVO(SkuDetail detail) {
         SkuVO vo = new SkuVO();
-        vo.setId(sku.getId());
-        vo.setSkuId(sku.getSkuId());
-        vo.setSkuName(sku.getSkuName());
-        vo.setStockNum(sku.getStockNum());
-        vo.setVersion(sku.getVersion());
-        vo.setWarnThreshold(sku.getWarnThreshold());
-        vo.setUpdateBy(sku.getUpdateBy());
-        vo.setUpdateTime(sku.getUpdateTime());
+        vo.setId(detail.getId());
+        vo.setSkuId(detail.getSkuId());
+        vo.setSkuName(detail.getSkuName());
+        vo.setStockNum(detail.getStockNum());
+        vo.setVersion(detail.getVersion());
+        vo.setWarnThreshold(detail.getWarnThreshold());
+        vo.setUpdateBy(detail.getUpdateBy());
+        vo.setUpdateTime(detail.getUpdateTime());
         return vo;
     }
 
     private InventoryChangeVO toChangeVO(InventoryFlow flow, boolean idempotent) {
-        StockSku sku = stockSkuMapper.selectBySkuId(flow.getSkuId());
-        return toChangeVO(flow, sku, idempotent);
+        SkuDetail detail = stockSkuMapper.selectDetailBySkuId(flow.getSkuId());
+        StockCount count = detail == null ? null : stockCountMapper.selectBySkuId(flow.getSkuId());
+        Integer warn = detail == null ? null : detail.getWarnThreshold();
+        return toChangeVO(flow, count, warn, idempotent);
     }
 
-    private InventoryChangeVO toChangeVO(InventoryFlow flow, StockSku sku, boolean idempotent) {
+    private InventoryChangeVO toChangeVO(InventoryFlow flow, StockCount count, Integer warnThreshold, boolean idempotent) {
         InventoryChangeVO vo = new InventoryChangeVO();
         vo.setFlowNo(flow.getFlowNo());
         vo.setSkuId(flow.getSkuId());
@@ -179,8 +190,8 @@ public class InventoryServiceImpl implements InventoryService {
         vo.setType(flow.getType());
         vo.setBizNo(flow.getBizNo());
         vo.setOperator(flow.getOperator());
-        vo.setStockNum(sku == null ? null : sku.getStockNum());
-        vo.setWarnThreshold(sku == null ? null : sku.getWarnThreshold());
+        vo.setStockNum(count == null ? null : count.getStockNum());
+        vo.setWarnThreshold(warnThreshold);
         vo.setIdempotent(idempotent);
         return vo;
     }

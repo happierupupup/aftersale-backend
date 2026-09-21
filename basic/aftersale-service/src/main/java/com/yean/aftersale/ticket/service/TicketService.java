@@ -4,7 +4,7 @@ import com.yean.aftersale.ticket.dto.TicketActionDTO;
 import com.yean.aftersale.ticket.dto.TicketApplyDTO;
 import com.yean.aftersale.ticket.dto.TicketQueryDTO;
 import com.yean.aftersale.ticket.dto.TicketVO;
-import com.yean.aftersale.config.Operator;
+import com.yean.common.operator.Operator;
 
 import java.util.List;
 

@@ -7,10 +7,20 @@ spring:
   profiles:
     active: local
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://127.0.0.1:3306/aftersale_core?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
-    username: root
-    password: 123456
+    dynamic:
+      primary: core
+      strict: true
+      datasource:
+        core:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://127.0.0.1:3306/aftersale_core?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+          username: root
+          password: 123456
+        order:
+          driver-class-name: com.mysql.cj.jdbc.Driver
+          url: jdbc:mysql://127.0.0.1:3306/aftersale_order?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+          username: root
+          password: 123456
   redis:
     host: 127.0.0.1
     port: 6379
@@ -30,8 +40,10 @@ mybatis-plus:
     db-config:
       id-type: auto
 
-aftersale:
-  allow-body-operator: true
+# 本地直连可在 body 填操作人；正式经网关关掉
+yean:
+  operator:
+    allow-body: true
 
 springdoc:
   swagger-ui:

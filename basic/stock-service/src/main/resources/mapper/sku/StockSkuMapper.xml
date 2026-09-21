@@ -7,52 +7,48 @@
         <id column="id" property="id"/>
         <result column="sku_id" property="skuId"/>
         <result column="sku_name" property="skuName"/>
-        <result column="stock_num" property="stockNum"/>
-        <result column="version" property="version"/>
         <result column="warn_threshold" property="warnThreshold"/>
         <result column="update_by" property="updateBy"/>
         <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
     </resultMap>
 
-    <sql id="StockSkuColumns">
-        id, sku_id, sku_name, stock_num, version, warn_threshold, update_by, create_time, update_time
-    </sql>
+    <resultMap id="SkuDetailResultMap" type="com.yean.stock.sku.dto.SkuDetail">
+        <id column="id" property="id"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="sku_name" property="skuName"/>
+        <result column="stock_num" property="stockNum"/>
+        <result column="version" property="version"/>
+        <result column="warn_threshold" property="warnThreshold"/>
+        <result column="update_by" property="updateBy"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
 
     <select id="selectBySkuId" resultMap="StockSkuResultMap">
-        SELECT <include refid="StockSkuColumns"/>
+        SELECT id, sku_id, sku_name, warn_threshold, update_by, create_time, update_time
         FROM stock_sku
         WHERE sku_id = #{skuId}
     </select>
 
-    <select id="selectSkuList" resultMap="StockSkuResultMap">
-        SELECT <include refid="StockSkuColumns"/>
-        FROM stock_sku
+    <select id="selectDetailBySkuId" resultMap="SkuDetailResultMap">
+        SELECT s.id, s.sku_id, s.sku_name, c.stock_num, c.version, s.warn_threshold, s.update_by, s.update_time
+        FROM stock_sku s
+        LEFT JOIN stock_count c ON s.sku_id = c.sku_id
+        WHERE s.sku_id = #{skuId}
+    </select>
+
+    <select id="selectDetailList" resultMap="SkuDetailResultMap">
+        SELECT s.id, s.sku_id, s.sku_name, c.stock_num, c.version, s.warn_threshold, s.update_by, s.update_time
+        FROM stock_sku s
+        LEFT JOIN stock_count c ON s.sku_id = c.sku_id
         <where>
             <if test="skuId != null">
-                AND sku_id = #{skuId}
+                AND s.sku_id = #{skuId}
             </if>
             <if test="skuName != null and skuName != ''">
-                AND sku_name LIKE CONCAT('%', #{skuName}, '%')
+                AND s.sku_name LIKE CONCAT('%', #{skuName}, '%')
             </if>
         </where>
-        ORDER BY id ASC
+        ORDER BY s.id ASC
     </select>
-
-    <update id="casDeduct">
-        UPDATE stock_sku
-        SET stock_num = stock_num - #{changeNum},
-            version = version + 1
-        WHERE sku_id = #{skuId}
-          AND version = #{version}
-          AND stock_num &gt;= #{changeNum}
-    </update>
-
-    <update id="casRollback">
-        UPDATE stock_sku
-        SET stock_num = stock_num + #{changeNum},
-            version = version + 1
-        WHERE sku_id = #{skuId}
-          AND version = #{version}
-    </update>
 </mapper>

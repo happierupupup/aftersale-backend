@@ -1,9 +1,9 @@
 package com.yean.aftersale.order.controller;
 
-import com.yean.aftersale.config.Operator;
-import com.yean.aftersale.config.OperatorResolver;
 import com.yean.aftersale.order.dto.OrderVO;
 import com.yean.aftersale.order.service.OrderService;
+import com.yean.common.operator.Operator;
+import com.yean.common.operator.OperatorResolver;
 import com.yean.common.result.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;

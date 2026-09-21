@@ -13,8 +13,8 @@ import com.yean.aftersale.ticket.enums.TicketType;
 import com.yean.aftersale.ticket.mapper.TicketOperLogMapper;
 import com.yean.aftersale.ticket.mapper.TicketMapper;
 import com.yean.aftersale.ticket.service.TicketService;
-import com.yean.aftersale.config.AftersaleLock;
-import com.yean.aftersale.config.Operator;
+import com.yean.common.lock.RedisBizLock;
+import com.yean.common.operator.Operator;
 import com.yean.aftersale.message.service.LocalMessageService;
 import com.yean.aftersale.message.service.impl.LocalMessageServiceImpl;
 import com.yean.aftersale.order.dto.OrderInfo;
@@ -42,12 +42,13 @@ public class TicketServiceImpl implements TicketService {
 
     private static final Duration APPLY_IDEMPOTENT_TTL = Duration.ofDays(7);
     private static final Duration OP_IDEMPOTENT_TTL = Duration.ofHours(24);
+    private static final String LOCK_PREFIX = "lock:aftersale:";
 
     private final OrderMapper orderMapper;
     private final TicketMapper ticketMapper;
     private final TicketOperLogMapper ticketOperLogMapper;
     private final LocalMessageService localMessageService;
-    private final AftersaleLock aftersaleLock;
+    private final RedisBizLock redisBizLock;
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
 
@@ -162,7 +163,7 @@ public class TicketServiceImpl implements TicketService {
             return toVO(requireAftersale(dto.getAftersaleNo()), false);
         }
         try {
-            TicketVO vo = aftersaleLock.execute(dto.getAftersaleNo(), () ->
+            TicketVO vo = redisBizLock.execute(LOCK_PREFIX, dto.getAftersaleNo(), () ->
                     transactionTemplate.execute(status -> doOperate(dto, operator, action, nextStatus)));
             if (vo == null) {
                 throw new BizException(ErrorEnum.AFTERSALE_NOT_FOUND);

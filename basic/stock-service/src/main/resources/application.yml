@@ -32,8 +32,11 @@ mybatis-plus:
 
 stock:
   cache-ttl-seconds: 300
-  # 本地直连 8083 可在 body 填 username；正式经网关不要开
-  allow-body-username: true
+
+# 本地直连可在 body 填 username；正式经网关关掉
+yean:
+  operator:
+    allow-body: true
 
 springdoc:
   swagger-ui:

@@ -15,9 +15,6 @@ public class StockSku {
     private Long id;
     private Long skuId;
     private String skuName;
-    private Integer stockNum;
-    /** 乐观锁版本号，扣减/回退用 CAS SQL 更新 */
-    private Integer version;
     private Integer warnThreshold;
     /** 最后一次维护档案的操作人 */
     private String updateBy;

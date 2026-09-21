@@ -1,7 +1,7 @@
 package com.yean.stock.inventory.controller;
 
+import com.yean.common.operator.OperatorResolver;
 import com.yean.common.result.R;
-import com.yean.stock.config.OperatorResolver;
 import com.yean.stock.sku.dto.SkuVO;
 import com.yean.stock.inventory.dto.InventoryChangeDTO;
 import com.yean.stock.inventory.dto.InventoryChangeVO;
@@ -43,7 +43,7 @@ public class InventoryController {
                                        @Parameter(in = ParameterIn.HEADER, hidden = true)
                                        @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
         return R.ok(inventoryService.deduct(dto,
-                operatorResolver.resolve(headerUsername, headerUserId, dto.getUsername())));
+                operatorResolver.resolveUsername(headerUsername, headerUserId, dto.getUsername())));
     }
 
     @Operation(summary = "回退库存（幂等键：bizNo + ROLLBACK），操作人写入流水")
@@ -54,7 +54,7 @@ public class InventoryController {
                                          @Parameter(in = ParameterIn.HEADER, hidden = true)
                                          @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
         return R.ok(inventoryService.rollback(dto,
-                operatorResolver.resolve(headerUsername, headerUserId, dto.getUsername())));
+                operatorResolver.resolveUsername(headerUsername, headerUserId, dto.getUsername())));
     }
 
     @Operation(summary = "查当前可用库存（Cache Aside）")

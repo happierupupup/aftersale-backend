@@ -1,7 +1,7 @@
 package com.yean.stock.sku.controller;
 
+import com.yean.common.operator.OperatorResolver;
 import com.yean.common.result.R;
-import com.yean.stock.config.OperatorResolver;
 import com.yean.stock.sku.dto.SkuCreateDTO;
 import com.yean.stock.sku.dto.SkuQueryDTO;
 import com.yean.stock.sku.dto.SkuUpdateDTO;
@@ -55,7 +55,7 @@ public class SkuController {
                           @RequestHeader(value = "X-Username", required = false) String headerUsername,
                           @Parameter(in = ParameterIn.HEADER, hidden = true)
                           @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
-        return R.ok(skuService.create(dto, operatorResolver.resolve(headerUsername, headerUserId, dto.getUsername())));
+        return R.ok(skuService.create(dto, operatorResolver.resolveUsername(headerUsername, headerUserId, dto.getUsername())));
     }
 
     @Operation(summary = "修改名称 / 预警阈值，不改可用库存")
@@ -65,7 +65,7 @@ public class SkuController {
                           @RequestHeader(value = "X-Username", required = false) String headerUsername,
                           @Parameter(in = ParameterIn.HEADER, hidden = true)
                           @RequestHeader(value = "X-User-Id", required = false) String headerUserId) {
-        skuService.update(skuId, dto, operatorResolver.resolve(headerUsername, headerUserId, dto.getUsername()));
+        skuService.update(skuId, dto, operatorResolver.resolveUsername(headerUsername, headerUserId, dto.getUsername()));
         return R.ok();
     }
 

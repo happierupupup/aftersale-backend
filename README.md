@@ -41,13 +41,16 @@ aftersale-backend
 │   ├── result/R                 # 统一 {code,msg,data}
 │   ├── exception/               # BizException、MVC GlobalExceptionHandler
 │   ├── enums/                   # ErrorEnum、RoleEnum、PermissionEnum
+│   ├── lock/RedisBizLock        # Redisson 业务锁（stock / aftersale 共用）
+│   ├── tx/TxAutoConfiguration   # TransactionTemplate
+│   ├── operator/                # Operator、OperatorResolver、yean.operator.allow-body
 │   └── web/EmptyStringToNullAdvice
 │
 ├── portal/ …/com.yean.portal/
 │   ├── user/                    # 用户 CRUD、authenticate、角色授权
 │   ├── dept/                    # 部门树
 │   ├── notify/                  # 站内通知
-│   └── config/                  # Redis、事务、写操作锁
+│   └── config/                  # Redis、写操作锁
 │
 ├── gateway/ …/com.yean.gateway/
 │   ├── handler/                 # 登录 / 登出 / 续期 RouterFunction
@@ -57,15 +60,14 @@ aftersale-backend
 │   └── exception/               # WebFlux 统一 JSON 错误
 │
 ├── basic/stock-service/ …/com.yean.stock/
-│   ├── sku/                     # SKU 档案：CRUD、预警阈值、update_by、缓存
-│   ├── inventory/               # 库存变动：扣减/回退/流水、operator
-│   └── config/                  # Redis、Redisson 锁、操作人解析
+│   ├── sku/                     # SKU 档案 CRUD（表 stock_sku）
+│   ├── inventory/               # 计数 CAS + 扣减/回退/流水（stock_count / stock_flow）
+│   └── config/                  # Redis、SkuCache、StockProperties
 │
 └── basic/aftersale-service/ …/com.yean.aftersale/
-    ├── order/                   # 模拟订单查询
+    ├── order/                   # 模拟订单（库 aftersale_order，@DS("order")）
     ├── ticket/                  # 售后单：申请/审核/驳回/撤回、操作日志
-    ├── message/                 # 本地消息表 outbox（先落库，暂不发 MQ）
-    └── config/                  # Redis、Redisson 锁、操作人解析
+    └── message/                 # 本地消息表 outbox（先落库，暂不发 MQ）
 ```
 
 接口前缀（均经 gateway 转发，也可本服务端口直连）：
@@ -98,9 +100,10 @@ mysql -uroot -p < config-file/sql/01-init.sql
 mysql -uroot -p < config-file/sql/02-user.sql
 mysql -uroot -p < config-file/sql/03-stock.sql
 mysql -uroot -p < config-file/sql/04-aftersale.sql
+mysql -uroot -p < config-file/sql/05-order.sql
 ```
 
-`01` 建三个库；`02` 用户中心；`03` 库存 SKU；`04` 模拟订单和售后表。演示订单挂在用户 id=5（精神状态良好），商家 id=2（AAA代购）。
+`01` 建四个库；`02` 用户中心；`03` 库存（SKU 档案 + 计数）；`04` 售后表；`05` 模拟订单（独立库 aftersale_order）。演示订单挂在用户 id=5（精神状态良好），商家 id=2（AAA代购）。
 
 ### 2. Redis
 

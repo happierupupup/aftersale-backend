@@ -5,5 +5,6 @@ spring:
         enabled: true
         fail-fast: false
 
-aftersale:
-  allow-body-operator: false
+yean:
+  operator:
+    allow-body: false

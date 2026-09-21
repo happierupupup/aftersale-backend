@@ -1,21 +1,22 @@
-package com.yean.aftersale.config;
+package com.yean.common.operator;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
-@Component
 @RequiredArgsConstructor
 public class OperatorResolver {
 
-    private final AftersaleProperties aftersaleProperties;
+    private final OperatorProperties properties;
 
+    /**
+     * 完整操作人：优先 Header，allow-body 时可用 body 补齐。
+     */
     public Operator resolve(String headerUserId, String headerUsername, String headerRole,
                             Long bodyUserId, String bodyUsername, String bodyRole) {
         Long userId = parseLong(headerUserId);
         String username = trimToNull(headerUsername);
         String role = trimToNull(headerRole);
-        if (aftersaleProperties.isAllowBodyOperator()) {
+        if (properties.isAllowBody()) {
             if (userId == null) {
                 userId = bodyUserId;
             }
@@ -27,6 +28,22 @@ public class OperatorResolver {
             }
         }
         return new Operator(userId, username, role);
+    }
+
+    /**
+     * 库存等只记操作人名称：X-Username → X-User-Id → body.username（本地）。
+     */
+    public String resolveUsername(String headerUsername, String headerUserId, String bodyUsername) {
+        if (StringUtils.hasText(headerUsername)) {
+            return headerUsername.trim();
+        }
+        if (StringUtils.hasText(headerUserId)) {
+            return headerUserId.trim();
+        }
+        if (properties.isAllowBody() && StringUtils.hasText(bodyUsername)) {
+            return bodyUsername.trim();
+        }
+        return null;
     }
 
     private static String trimToNull(String value) {

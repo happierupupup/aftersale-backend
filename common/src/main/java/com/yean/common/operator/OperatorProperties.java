@@ -1,15 +1,15 @@
-package com.yean.aftersale.config;
+package com.yean.common.operator;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @Data
-@ConfigurationProperties(prefix = "aftersale")
-public class AftersaleProperties {
+@ConfigurationProperties(prefix = "yean.operator")
+public class OperatorProperties {
 
     /**
      * 仅本地调试：允许 body 带 userId / username / role。
      * 正式走网关时为 false，只信 X-User-* 头。
      */
-    private boolean allowBodyOperator = false;
+    private boolean allowBody = false;
 }

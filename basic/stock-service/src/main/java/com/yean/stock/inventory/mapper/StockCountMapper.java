@@ -1,0 +1,22 @@
+package com.yean.stock.inventory.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.yean.stock.inventory.dto.StockCount;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+@Mapper
+public interface StockCountMapper extends BaseMapper<StockCount> {
+
+    StockCount selectBySkuId(@Param("skuId") Long skuId);
+
+    int casDeduct(@Param("skuId") Long skuId,
+                  @Param("version") Integer version,
+                  @Param("changeNum") Integer changeNum);
+
+    int casRollback(@Param("skuId") Long skuId,
+                    @Param("version") Integer version,
+                    @Param("changeNum") Integer changeNum);
+
+    int deleteBySkuId(@Param("skuId") Long skuId);
+}
