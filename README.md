@@ -58,26 +58,26 @@ aftersale-backend
 │
 ├── basic/stock-service/ …/com.yean.stock/
 │   ├── sku/                     # SKU 档案：CRUD、预警阈值、update_by、缓存
-│   ├── stock/                   # 库存变动：扣减/回退/流水、operator
+│   ├── inventory/               # 库存变动：扣减/回退/流水、operator
 │   └── config/                  # Redis、Redisson 锁、操作人解析
 │
 └── basic/aftersale-service/ …/com.yean.aftersale/
     ├── order/                   # 模拟订单查询
-    ├── aftersale/               # 售后单：申请/审核/驳回/撤回、操作日志
+    ├── ticket/                  # 售后单：申请/审核/驳回/撤回、操作日志
     ├── message/                 # 本地消息表 outbox（先落库，暂不发 MQ）
     └── config/                  # Redis、Redisson 锁、操作人解析
 ```
 
-接口前缀（均经 gateway `/api/**` 转发，也可本服务端口直连）：
+接口前缀（均经 gateway 转发，也可本服务端口直连）：
 
 | 模块 | 路径 |
 |------|------|
 | 登录登出 | `/api/auth/**`（只在 gateway） |
-| 用户 / 部门 / 通知 | `/api/user/**` `/api/dept/**` `/api/notify/**` → portal |
-| SKU 档案 | `/api/stock/sku/**` → stock-service |
-| 库存变动 | `/api/stock/deduct` `rollback` `{skuId}` `flow/list` → stock-service |
-| 模拟订单 | `/api/aftersale/order/**` → aftersale-service |
-| 售后单 | `/api/aftersale/apply` `page` `{aftersaleNo}` `approve` `reject` `withdraw` |
+| 用户 / 部门 / 通知 | `/user/**` `/dept/**` `/notify/**` → portal |
+| SKU 档案 | `/sku/**` → stock-service |
+| 库存变动 | `/stock/deduct` `rollback` `{skuId}` `flow/list` → stock-service |
+| 模拟订单 | `/order/**` → aftersale-service |
+| 售后单 | `/aftersale/apply` `page` `{aftersaleNo}` `approve` `reject` `withdraw` |
 
 
 ## 环境（根据自己的端口、账号密码调整配置）
@@ -150,19 +150,19 @@ curl -X POST http://127.0.0.1:8080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"00000","password":"123456"}'
 
-curl http://127.0.0.1:8080/api/user/list \
+curl http://127.0.0.1:8080/user/list \
   -H 'Authorization: Bearer <上一步返回的 token>'
 
-curl http://127.0.0.1:8080/api/stock/1001 \
+curl http://127.0.0.1:8080/stock/1001 \
   -H 'Authorization: Bearer <token>'
 
-curl -X POST http://127.0.0.1:8080/api/stock/deduct \
+curl -X POST http://127.0.0.1:8080/stock/deduct \
   -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
   -d '{"skuId":1001,"changeNum":1,"bizNo":"AS-DEMO-001"}'
 
 # 本地直连售后（用户 id=5 申请 ORD20250920001）
-curl -X POST http://127.0.0.1:8082/api/aftersale/apply \
+curl -X POST http://127.0.0.1:8082/aftersale/apply \
   -H 'Content-Type: application/json' \
   -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'
 ```

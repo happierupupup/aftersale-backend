@@ -21,7 +21,7 @@ public class PortalAuthClient {
 
     public Mono<AuthUser> authenticate(LoginDTO dto) {
         return portalWebClient.post()
-                .uri("/api/user/authenticate")
+                .uri("/user/authenticate")
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(dto)
                 .retrieve()

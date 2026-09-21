@@ -29,7 +29,7 @@ import java.util.List;
 @Tag(name = "用户")
 @Validated
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/user")
 @RequiredArgsConstructor
 public class UserController {
 

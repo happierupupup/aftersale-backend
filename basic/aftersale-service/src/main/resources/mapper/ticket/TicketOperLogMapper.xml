@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yean.aftersale.ticket.mapper.TicketOperLogMapper">
+
+    <resultMap id="OperLogResultMap" type="com.yean.aftersale.ticket.dto.TicketOperLog">
+        <id column="id" property="id"/>
+        <result column="aftersale_no" property="aftersaleNo"/>
+        <result column="operator_id" property="operatorId"/>
+        <result column="operator_name" property="operatorName"/>
+        <result column="action" property="action"/>
+        <result column="before_status" property="beforeStatus"/>
+        <result column="after_status" property="afterStatus"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="selectByAftersaleNo" resultMap="OperLogResultMap">
+        SELECT id, aftersale_no, operator_id, operator_name, action, before_status, after_status, remark, create_time
+        FROM aftersale_oper_log
+        WHERE aftersale_no = #{aftersaleNo}
+        ORDER BY id ASC
+    </select>
+</mapper>

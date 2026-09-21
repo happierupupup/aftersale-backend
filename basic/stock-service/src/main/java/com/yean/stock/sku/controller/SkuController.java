@@ -29,7 +29,7 @@ import java.util.List;
 @Tag(name = "SKU 档案")
 @Validated
 @RestController
-@RequestMapping("/api/stock/sku")
+@RequestMapping("/sku")
 @RequiredArgsConstructor
 public class SkuController {
 

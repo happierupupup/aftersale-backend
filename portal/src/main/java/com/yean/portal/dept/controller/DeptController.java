@@ -23,7 +23,7 @@ import java.util.List;
 
 @Tag(name = "部门")
 @RestController
-@RequestMapping("/api/dept")
+@RequestMapping("/dept")
 @RequiredArgsConstructor
 public class DeptController {
 

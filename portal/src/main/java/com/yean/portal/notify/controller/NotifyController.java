@@ -21,7 +21,7 @@ import java.util.List;
 
 @Tag(name = "通知")
 @RestController
-@RequestMapping("/api/notify")
+@RequestMapping("/notify")
 @RequiredArgsConstructor
 public class NotifyController {
 

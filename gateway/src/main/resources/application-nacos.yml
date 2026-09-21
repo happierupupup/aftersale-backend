@@ -13,12 +13,14 @@ spring:
         - id: portal
           uri: lb://portal
           predicates:
-            - Path=/api/user/**,/api/dept/**,/api/notify/**
+            - Path=/user/**,/dept/**,/notify/**
         - id: aftersale-service
           uri: lb://aftersale-service
           predicates:
-            - Path=/api/aftersale/**
+            # 模拟订单接口在最简前缀 /order/**，售后单在 /aftersale/**
+            - Path=/aftersale/**,/order/**
         - id: stock-service
           uri: lb://stock-service
           predicates:
-            - Path=/api/stock/**
+            # SKU 档案在最简前缀 /sku/**，库存变动在 /stock/**
+            - Path=/stock/**,/sku/**

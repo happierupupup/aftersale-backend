@@ -3,7 +3,7 @@ USE aftersale_core;
 -- ---------------------------------------------------------------------------
 -- aftersale-service 售后核心库
 -- 售后类型 type：1退货 2换货 3仅退款
--- 售后状态 status：0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回
+-- 售后状态 status：0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回 7已撤回
 -- 订单状态 order_info.status：1待发货 2已发货 3已完成 4已关闭
 -- 支付状态 order_info.pay_status：0未支付 1已支付
 -- ---------------------------------------------------------------------------
@@ -42,20 +42,22 @@ CREATE TABLE aftersale_order (
     user_id              BIGINT         NOT NULL COMMENT '申请用户ID',
     merchant_id          BIGINT         NOT NULL COMMENT '商家ID',
     type                 TINYINT        NOT NULL COMMENT '1退货 2换货 3仅退款',
-    status               TINYINT        NOT NULL DEFAULT 0 COMMENT '0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回',
+    status               TINYINT        NOT NULL DEFAULT 0 COMMENT '0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回 7已撤回',
     sku_id               BIGINT         NOT NULL COMMENT 'SKU ID',
     sku_name             VARCHAR(128)   NOT NULL COMMENT '商品名称快照',
     num                  INT            NOT NULL COMMENT '售后数量',
-    amount               DECIMAL(12, 2) NOT NULL COMMENT '退款/换货涉及金额',
+    amount               DECIMAL(12, 2) NOT NULL COMMENT '退款/换货涉及金额（部分售后按数量比例折算）',
     reason               VARCHAR(512)            DEFAULT NULL COMMENT '申请原因',
     logistics_info       JSON                    DEFAULT NULL COMMENT '物流信息',
     refund_detail        JSON                    DEFAULT NULL COMMENT '退款明细',
+    -- 进行中=1；驳回/撤回置 NULL，释放 (order_no, sku_id) 申请位。MySQL 唯一索引允许多个 NULL
+    active_flag          TINYINT                 DEFAULT 1 COMMENT '进行中=1，终态（驳回/撤回）=NULL',
     process_instance_id  VARCHAR(64)             DEFAULT NULL COMMENT 'Activiti流程实例ID',
     create_time          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_aftersale_no (aftersale_no),
-    UNIQUE KEY uk_order_sku (order_no, sku_id),
+    UNIQUE KEY uk_order_sku (order_no, sku_id, active_flag),
     KEY idx_user_id (user_id),
     KEY idx_merchant_id (merchant_id),
     KEY idx_status (status),

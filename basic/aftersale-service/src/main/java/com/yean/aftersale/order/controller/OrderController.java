@@ -20,7 +20,7 @@ import java.util.List;
 
 @Tag(name = "模拟订单")
 @RestController
-@RequestMapping("/api/aftersale/order")
+@RequestMapping("/order")
 @RequiredArgsConstructor
 public class OrderController {
 
