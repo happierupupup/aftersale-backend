@@ -34,6 +34,10 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
+yean:
+  operatelog:
+    portal-url: http://127.0.0.1:8081
+
 management:
   endpoints:
     web:

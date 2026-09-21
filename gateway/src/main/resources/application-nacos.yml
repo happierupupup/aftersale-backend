@@ -13,7 +13,7 @@ spring:
         - id: portal
           uri: lb://portal
           predicates:
-            - Path=/user/**,/dept/**,/notify/**
+            - Path=/user/**,/dept/**,/notify/**,/operatelog/**
         - id: aftersale-service
           uri: lb://aftersale-service
           predicates:

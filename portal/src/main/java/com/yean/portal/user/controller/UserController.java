@@ -1,5 +1,6 @@
 package com.yean.portal.user.controller;
 
+import com.yean.common.operatelog.OperateLog;
 import com.yean.common.result.R;
 import com.yean.portal.user.dto.AuthenticateDTO;
 import com.yean.portal.user.dto.GrantRoleDTO;
@@ -59,12 +60,14 @@ public class UserController {
         return R.ok(userService.list(query));
     }
 
+    @OperateLog(module = "user", action = "create")
     @Operation(summary = "新增用户")
     @PostMapping
     public R<Long> create(@Valid @RequestBody UserCreateDTO dto) {
         return R.ok(userService.create(dto));
     }
 
+    @OperateLog(module = "user", action = "update")
     @Operation(summary = "修改用户")
     @PutMapping("/{id}")
     public R<Void> update(@PathVariable Long id, @RequestBody UserUpdateDTO dto) {
@@ -72,6 +75,7 @@ public class UserController {
         return R.ok();
     }
 
+    @OperateLog(module = "user", action = "grantRoles")
     @Operation(summary = "管理员授权：全量覆盖用户角色")
     @PutMapping("/{id}/roles")
     public R<Void> grantRoles(@PathVariable Long id, @Valid @RequestBody GrantRoleDTO dto) {
@@ -79,6 +83,7 @@ public class UserController {
         return R.ok();
     }
 
+    @OperateLog(module = "user", action = "delete")
     @Operation(summary = "删除用户")
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {

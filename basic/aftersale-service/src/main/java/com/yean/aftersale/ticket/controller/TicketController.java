@@ -7,6 +7,7 @@ import com.yean.aftersale.ticket.dto.TicketVO;
 import com.yean.aftersale.ticket.service.TicketService;
 import com.yean.common.operator.Operator;
 import com.yean.common.operator.OperatorResolver;
+import com.yean.common.operatelog.OperateLog;
 import com.yean.common.result.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,6 +36,7 @@ public class TicketController {
     private final TicketService ticketService;
     private final OperatorResolver operatorResolver;
 
+    @OperateLog(module = "aftersale", action = "apply")
     @Operation(summary = "申请售后。USER；同一订单同一 SKU 仅一张进行中的单，驳回/撤回后可重新申请")
     @PostMapping("/apply")
     public R<TicketVO> apply(@Valid @RequestBody TicketApplyDTO dto,
@@ -69,6 +71,7 @@ public class TicketController {
         return R.ok(ticketService.detail(aftersaleNo, operator));
     }
 
+    @OperateLog(module = "aftersale", action = "approve")
     @Operation(summary = "审核通过。MERCHANT / WAREHOUSE / FINANCE，仅待审核")
     @PostMapping("/approve")
     public R<TicketVO> approve(@Valid @RequestBody TicketActionDTO dto,
@@ -83,6 +86,7 @@ public class TicketController {
         return R.ok(ticketService.approve(dto, operator));
     }
 
+    @OperateLog(module = "aftersale", action = "reject")
     @Operation(summary = "驳回。MERCHANT / WAREHOUSE / FINANCE，仅待审核；驳回后可重新申请")
     @PostMapping("/reject")
     public R<TicketVO> reject(@Valid @RequestBody TicketActionDTO dto,
@@ -97,6 +101,7 @@ public class TicketController {
         return R.ok(ticketService.reject(dto, operator));
     }
 
+    @OperateLog(module = "aftersale", action = "withdraw")
     @Operation(summary = "撤回。USER，仅待审核；状态置为已撤回，可重新申请")
     @PostMapping("/withdraw")
     public R<TicketVO> withdraw(@Valid @RequestBody TicketActionDTO dto,

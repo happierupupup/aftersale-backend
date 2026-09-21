@@ -37,6 +37,8 @@ stock:
 yean:
   operator:
     allow-body: true
+  operatelog:
+    portal-url: http://127.0.0.1:8081
 
 springdoc:
   swagger-ui:

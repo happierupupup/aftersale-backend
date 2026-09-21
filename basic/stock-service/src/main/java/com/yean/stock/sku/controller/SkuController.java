@@ -1,6 +1,7 @@
 package com.yean.stock.sku.controller;
 
 import com.yean.common.operator.OperatorResolver;
+import com.yean.common.operatelog.OperateLog;
 import com.yean.common.result.R;
 import com.yean.stock.sku.dto.SkuCreateDTO;
 import com.yean.stock.sku.dto.SkuQueryDTO;
@@ -48,6 +49,7 @@ public class SkuController {
         return R.ok(skuService.getBySkuId(skuId));
     }
 
+    @OperateLog(module = "sku", action = "create")
     @Operation(summary = "新增 SKU 档案")
     @PostMapping
     public R<Long> create(@Valid @RequestBody SkuCreateDTO dto,
@@ -58,6 +60,7 @@ public class SkuController {
         return R.ok(skuService.create(dto, operatorResolver.resolveUsername(headerUsername, headerUserId, dto.getUsername())));
     }
 
+    @OperateLog(module = "sku", action = "update")
     @Operation(summary = "修改名称 / 预警阈值，不改可用库存")
     @PutMapping("/{skuId}")
     public R<Void> update(@PathVariable Long skuId, @Valid @RequestBody SkuUpdateDTO dto,
@@ -69,6 +72,7 @@ public class SkuController {
         return R.ok();
     }
 
+    @OperateLog(module = "sku", action = "delete")
     @Operation(summary = "删除 SKU")
     @DeleteMapping("/{skuId}")
     public R<Void> delete(@PathVariable Long skuId) {

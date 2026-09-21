@@ -3,4 +3,5 @@ com.yean.common.exception.GlobalExceptionHandler,\
 com.yean.common.web.EmptyStringToNullAdvice,\
 com.yean.common.lock.RedisBizLockAutoConfiguration,\
 com.yean.common.tx.TxAutoConfiguration,\
-com.yean.common.operator.OperatorAutoConfiguration
+com.yean.common.operator.OperatorAutoConfiguration,\
+com.yean.common.operatelog.OperateLogAspectAutoConfiguration

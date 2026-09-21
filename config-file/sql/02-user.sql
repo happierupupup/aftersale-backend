@@ -7,6 +7,7 @@ USE aftersale_user;
 -- 演示账号密码均为 123456（BCrypt）
 -- ---------------------------------------------------------------------------
 
+DROP TABLE IF EXISTS sys_operate_log;
 DROP TABLE IF EXISTS sys_notify;
 DROP TABLE IF EXISTS sys_user_role;
 DROP TABLE IF EXISTS sys_user;
@@ -62,6 +63,25 @@ CREATE TABLE sys_notify (
     KEY idx_user_read (user_id, read_flag)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户通知（站内信为主，短信/邮件仅记录）';
 
+CREATE TABLE sys_operate_log (
+    id            BIGINT        NOT NULL AUTO_INCREMENT COMMENT '主键',
+    module        VARCHAR(64)   NOT NULL COMMENT '业务模块，如 user/stock/aftersale',
+    action        VARCHAR(64)   NOT NULL COMMENT '动作，如 create/update/approve',
+    method        VARCHAR(16)            DEFAULT NULL COMMENT 'HTTP 方法',
+    path          VARCHAR(256)           DEFAULT NULL COMMENT '请求路径',
+    operator_id   BIGINT                 DEFAULT NULL COMMENT '操作人ID',
+    operator_name VARCHAR(64)            DEFAULT NULL COMMENT '操作人名称',
+    operator_role VARCHAR(32)            DEFAULT NULL COMMENT '操作人角色',
+    success       TINYINT       NOT NULL DEFAULT 1 COMMENT '1成功 0失败',
+    cost_ms       INT                    DEFAULT NULL COMMENT '耗时毫秒',
+    remark        VARCHAR(512)           DEFAULT NULL COMMENT '备注/异常摘要',
+    create_time   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_module_action (module, action),
+    KEY idx_operator_id (operator_id),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='接口操作日志';
+
 -- 部门树
 -- 总公司
 --   ├── 运营中心
@@ -97,3 +117,4 @@ INSERT INTO sys_user_role (user_id, role) VALUES
 INSERT INTO sys_notify (user_id, title, content, channel, biz_type, read_flag) VALUES
 (5, '欢迎使用售后平台', '售后进度将以站内信通知，请留意本列表。', 'INBOX', 'SYSTEM', 0),
 (5, '演示：审核通过', '您的售后单 AS202609200001 商家已同意，请按指引寄回。', 'INBOX', 'AFTERSALE', 0);
+

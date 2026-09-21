@@ -50,6 +50,11 @@ gateway:
       - /v3/api-docs/**
       - /webjars/**
 
+# OpenFeign 写操作日志直连 portal（不经网关，避免套娃）
+yean:
+  operatelog:
+    portal-url: ${gateway.portal-url}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

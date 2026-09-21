@@ -5,6 +5,7 @@ import com.yean.portal.dept.dto.DeptQueryDTO;
 import com.yean.portal.dept.dto.DeptUpdateDTO;
 import com.yean.portal.dept.dto.DeptVO;
 import com.yean.portal.dept.service.DeptService;
+import com.yean.common.operatelog.OperateLog;
 import com.yean.common.result.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -47,12 +48,14 @@ public class DeptController {
         return R.ok(deptService.getById(id));
     }
 
+    @OperateLog(module = "dept", action = "create")
     @Operation(summary = "新增部门")
     @PostMapping
     public R<Long> create(@Valid @RequestBody DeptCreateDTO dto) {
         return R.ok(deptService.create(dto));
     }
 
+    @OperateLog(module = "dept", action = "update")
     @Operation(summary = "修改部门")
     @PutMapping("/{id}")
     public R<Void> update(@PathVariable Long id, @RequestBody DeptUpdateDTO dto) {
@@ -60,6 +63,7 @@ public class DeptController {
         return R.ok();
     }
 
+    @OperateLog(module = "dept", action = "delete")
     @Operation(summary = "删除部门")
     @DeleteMapping("/{id}")
     public R<Void> delete(@PathVariable Long id) {

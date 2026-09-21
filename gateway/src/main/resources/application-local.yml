@@ -6,7 +6,7 @@ spring:
         - id: portal
           uri: http://127.0.0.1:8081
           predicates:
-            - Path=/user/**,/dept/**,/notify/**
+            - Path=/user/**,/dept/**,/notify/**,/operatelog/**
         - id: aftersale-service
           uri: http://127.0.0.1:8082
           predicates:

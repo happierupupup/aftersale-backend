@@ -1,6 +1,7 @@
 package com.yean.stock.inventory.controller;
 
 import com.yean.common.operator.OperatorResolver;
+import com.yean.common.operatelog.OperateLog;
 import com.yean.common.result.R;
 import com.yean.stock.sku.dto.SkuVO;
 import com.yean.stock.inventory.dto.InventoryChangeDTO;
@@ -35,6 +36,7 @@ public class InventoryController {
     private final InventoryService inventoryService;
     private final OperatorResolver operatorResolver;
 
+    @OperateLog(module = "stock", action = "deduct")
     @Operation(summary = "扣减库存（幂等键：bizNo + DEDUCT），操作人写入流水")
     @PostMapping("/deduct")
     public R<InventoryChangeVO> deduct(@Valid @RequestBody InventoryChangeDTO dto,
@@ -46,6 +48,7 @@ public class InventoryController {
                 operatorResolver.resolveUsername(headerUsername, headerUserId, dto.getUsername())));
     }
 
+    @OperateLog(module = "stock", action = "rollback")
     @Operation(summary = "回退库存（幂等键：bizNo + ROLLBACK），操作人写入流水")
     @PostMapping("/rollback")
     public R<InventoryChangeVO> rollback(@Valid @RequestBody InventoryChangeDTO dto,
