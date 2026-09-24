@@ -1,7 +1,10 @@
 package com.yean.portal.notify.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.exception.BizException;
+import com.yean.common.result.PageResult;
 import com.yean.portal.notify.dto.NotifyQueryDTO;
 import com.yean.portal.notify.dto.NotifySendDTO;
 import com.yean.portal.notify.dto.NotifyVO;
@@ -16,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
 
@@ -52,9 +54,12 @@ public class NotifyServiceImpl implements NotifyService {
     }
 
     @Override
-    public List<NotifyVO> list(NotifyQueryDTO query) {
+    public PageResult<NotifyVO> list(NotifyQueryDTO query) {
         NotifyQueryDTO cond = query == null ? new NotifyQueryDTO() : query;
-        return notifyMapper.selectNotifyList(cond).stream().map(this::toVO).collect(Collectors.toList());
+        IPage<Notify> result = notifyMapper.selectNotifyList(
+                new Page<>(cond.pageOrDefault(), cond.sizeOrDefault()), cond);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
     }
 
     @Override

@@ -1,12 +1,11 @@
 package com.yean.stock.inventory.service;
 
-import com.yean.stock.sku.dto.SkuVO;
+import com.yean.common.result.PageResult;
 import com.yean.stock.inventory.dto.InventoryChangeDTO;
 import com.yean.stock.inventory.dto.InventoryChangeVO;
 import com.yean.stock.inventory.dto.InventoryFlowQueryDTO;
 import com.yean.stock.inventory.dto.InventoryFlowVO;
-
-import java.util.List;
+import com.yean.stock.sku.dto.SkuVO;
 
 public interface InventoryService {
 
@@ -16,5 +15,5 @@ public interface InventoryService {
 
     SkuVO getBySkuId(Long skuId);
 
-    List<InventoryFlowVO> listFlows(InventoryFlowQueryDTO query);
+    PageResult<InventoryFlowVO> listFlows(InventoryFlowQueryDTO query);
 }

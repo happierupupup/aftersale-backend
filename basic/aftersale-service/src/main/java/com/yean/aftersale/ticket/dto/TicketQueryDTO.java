@@ -1,16 +1,19 @@
 package com.yean.aftersale.ticket.dto;
 
+import com.yean.common.result.PageQuery;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Schema(description = "售后列表查询，条件均可选")
-public class TicketQueryDTO {
+public class TicketQueryDTO extends PageQuery {
 
-    @Schema(description = "售后状态：0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回 7已撤回")
+    @Schema(description = "售后状态：0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回")
     private Integer status;
 
     @Schema(description = "1退货 2换货 3仅退款")

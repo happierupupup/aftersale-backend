@@ -27,7 +27,7 @@ public class TicketVO {
     @Schema(description = "1退货 2换货 3仅退款")
     private Integer type;
 
-    @Schema(description = "0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回 7已撤回")
+    @Schema(description = "0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回")
     private Integer status;
 
     @Schema(description = "SKU ID")

@@ -7,8 +7,8 @@
 - **portal**：用户 / 部门 CRUD、多角色、权限校验、登录校验（不签发 Token）、写操作 Redis 锁、**站内通知**
 - **gateway**：登录签发 JWT、校验 Token、续期、登出黑名单、白名单、把用户信息注入 `X-User-*` 后转发下游
 - **stock-service**：SKU 档案 + 库存扣减/回退
-- **aftersale-service**：模拟订单、申请/列表/详情、审核/驳回/撤回（状态机，无 Activiti）
-- **统一返回**：`{code, msg, data}`，错误码见 `ErrorEnum`
+- **aftersale-service**：模拟订单、申请/分页/详情、审核/驳回/撤回/发货/收货/退款（精简状态机，无 Activiti）
+- **统一返回**：`{code, msg, data}`，分页 `PageResult`（page/size/total/pages/records），错误码见 `ErrorEnum`
 
 ## 模块
 
@@ -38,12 +38,14 @@ aftersale-backend
 ```
 aftersale-backend
 ├── common/src/main/java/com/yean/common/
-│   ├── result/R                 # 统一 {code,msg,data}
+│   ├── result/R PageQuery PageResult  # 统一返回与分页
 │   ├── exception/               # BizException、MVC GlobalExceptionHandler
 │   ├── enums/                   # ErrorEnum、RoleEnum、PermissionEnum
 │   ├── lock/RedisBizLock        # Redisson 业务锁（stock / aftersale 共用）
 │   ├── tx/TxAutoConfiguration   # TransactionTemplate
 │   ├── operator/                # Operator、OperatorResolver、yean.operator.allow-body
+│   ├── operatelog/              # @OperateLog + Feign
+│   ├── mybatis/MybatisPlusAutoConfiguration  # 分页插件
 │   └── web/EmptyStringToNullAdvice
 │
 ├── portal/ …/com.yean.portal/
@@ -66,9 +68,11 @@ aftersale-backend
 │
 └── basic/aftersale-service/ …/com.yean.aftersale/
     ├── order/                   # 模拟订单（库 aftersale_order，@DS("order")）
-    ├── ticket/                  # 售后单：申请/审核/驳回/撤回、操作日志
+    ├── ticket/                  # 售后：申请→审核→仓库发货→用户收货→退款
     └── message/                 # 本地消息表 outbox（先落库，暂不发 MQ）
 ```
+
+售后主链路状态：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（另有 `5已驳回` / `6已撤回`）。仅退款审核通过后直达待退款。
 
 接口前缀（均经 gateway 转发，也可本服务端口直连）：
 
@@ -79,7 +83,7 @@ aftersale-backend
 | SKU 档案 | `/sku/**` → stock-service |
 | 库存变动 | `/stock/deduct` `rollback` `{skuId}` `flow/list` → stock-service |
 | 模拟订单 | `/order/**` → aftersale-service |
-| 售后单 | `/aftersale/apply` `page` `{aftersaleNo}` `approve` `reject` `withdraw` |
+| 售后单 | `/aftersale/apply` `page` `{aftersaleNo}` `approve` `reject` `withdraw` `ship` `receive` `refund` |
 
 
 ## 环境（根据自己的端口、账号密码调整配置）
@@ -168,6 +172,23 @@ curl -X POST http://127.0.0.1:8080/stock/deduct \
 curl -X POST http://127.0.0.1:8082/aftersale/apply \
   -H 'Content-Type: application/json' \
   -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'
+
+# 分页列表
+curl 'http://127.0.0.1:8082/aftersale/page?page=1&size=10&userId=5'
+
+# 商家审核 → 仓库发货 → 用户收货 → 退款（aftersaleNo 替换为申请返回值）
+curl -X POST http://127.0.0.1:8082/aftersale/approve \
+  -H 'Content-Type: application/json' \
+  -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
+curl -X POST http://127.0.0.1:8082/aftersale/ship \
+  -H 'Content-Type: application/json' \
+  -d '{"aftersaleNo":"AS...","logisticsInfo":{"company":"顺丰","trackingNo":"SF001"},"userId":3,"username":"仓库小张","role":"WAREHOUSE"}'
+curl -X POST http://127.0.0.1:8082/aftersale/receive \
+  -H 'Content-Type: application/json' \
+  -d '{"aftersaleNo":"AS...","userId":5,"username":"精神状态良好","role":"USER"}'
+curl -X POST http://127.0.0.1:8082/aftersale/refund \
+  -H 'Content-Type: application/json' \
+  -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
 ```
 
 ### 4. Docker（可选）

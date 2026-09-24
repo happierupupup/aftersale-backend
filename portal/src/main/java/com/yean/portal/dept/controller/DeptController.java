@@ -6,6 +6,7 @@ import com.yean.portal.dept.dto.DeptUpdateDTO;
 import com.yean.portal.dept.dto.DeptVO;
 import com.yean.portal.dept.service.DeptService;
 import com.yean.common.operatelog.OperateLog;
+import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -36,9 +37,9 @@ public class DeptController {
         return R.ok(deptService.tree());
     }
 
-    @Operation(summary = "部门列表")
+    @Operation(summary = "部门分页列表。page/size 默认 1/10，size 上限 50")
     @GetMapping("/list")
-    public R<List<DeptVO>> list(DeptQueryDTO query) {
+    public R<PageResult<DeptVO>> list(DeptQueryDTO query) {
         return R.ok(deptService.list(query));
     }
 

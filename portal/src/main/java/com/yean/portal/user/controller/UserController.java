@@ -1,6 +1,7 @@
 package com.yean.portal.user.controller;
 
 import com.yean.common.operatelog.OperateLog;
+import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import com.yean.portal.user.dto.AuthenticateDTO;
 import com.yean.portal.user.dto.GrantRoleDTO;
@@ -25,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import java.util.List;
 
 @Tag(name = "用户")
 @Validated
@@ -54,9 +54,9 @@ public class UserController {
         return R.ok(userService.getById(id));
     }
 
-    @Operation(summary = "用户列表")
+    @Operation(summary = "用户分页列表。page/size 默认 1/10，size 上限 50")
     @GetMapping("/list")
-    public R<List<UserVO>> list(UserQueryDTO query) {
+    public R<PageResult<UserVO>> list(UserQueryDTO query) {
         return R.ok(userService.list(query));
     }
 

@@ -13,8 +13,7 @@ public enum RoleEnum {
     USER("普通用户"),
     MERCHANT("商家"),
     ADMIN("管理员"),
-    WAREHOUSE("仓库"),
-    FINANCE("财务");
+    WAREHOUSE("仓库");
 
     private final String label;
 

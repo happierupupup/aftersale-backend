@@ -1,15 +1,17 @@
 package com.yean.aftersale.order.service.impl;
 
-import com.yean.common.enums.ErrorEnum;
-import com.yean.common.exception.BizException;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.aftersale.order.dto.OrderInfo;
 import com.yean.aftersale.order.dto.OrderVO;
 import com.yean.aftersale.order.mapper.OrderMapper;
 import com.yean.aftersale.order.service.OrderService;
+import com.yean.common.enums.ErrorEnum;
+import com.yean.common.exception.BizException;
+import com.yean.common.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,8 +30,10 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
-    public List<OrderVO> listByUserId(Long userId) {
-        return orderMapper.selectByUserId(userId).stream().map(this::toVO).collect(Collectors.toList());
+    public PageResult<OrderVO> listByUserId(Long userId, long page, long size) {
+        IPage<OrderInfo> result = orderMapper.selectByUserId(new Page<>(page, size), userId);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
     }
 
     private OrderVO toVO(OrderInfo order) {

@@ -1,39 +1,44 @@
 package com.yean.aftersale.ticket.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yean.aftersale.message.service.LocalMessageService;
+import com.yean.aftersale.message.service.impl.LocalMessageServiceImpl;
+import com.yean.aftersale.order.dto.OrderInfo;
+import com.yean.aftersale.order.mapper.OrderMapper;
+import com.yean.aftersale.ticket.dto.LogisticsInfo;
+import com.yean.aftersale.ticket.dto.RefundDetail;
+import com.yean.aftersale.ticket.dto.Ticket;
 import com.yean.aftersale.ticket.dto.TicketActionDTO;
 import com.yean.aftersale.ticket.dto.TicketApplyDTO;
 import com.yean.aftersale.ticket.dto.TicketLogVO;
 import com.yean.aftersale.ticket.dto.TicketOperLog;
-import com.yean.aftersale.ticket.dto.Ticket;
 import com.yean.aftersale.ticket.dto.TicketQueryDTO;
 import com.yean.aftersale.ticket.dto.TicketVO;
 import com.yean.aftersale.ticket.enums.TicketAction;
 import com.yean.aftersale.ticket.enums.TicketStatus;
 import com.yean.aftersale.ticket.enums.TicketType;
-import com.yean.aftersale.ticket.mapper.TicketOperLogMapper;
 import com.yean.aftersale.ticket.mapper.TicketMapper;
+import com.yean.aftersale.ticket.mapper.TicketOperLogMapper;
 import com.yean.aftersale.ticket.service.TicketService;
-import com.yean.common.lock.RedisBizLock;
-import com.yean.common.operator.Operator;
-import com.yean.aftersale.message.service.LocalMessageService;
-import com.yean.aftersale.message.service.impl.LocalMessageServiceImpl;
-import com.yean.aftersale.order.dto.OrderInfo;
-import com.yean.aftersale.order.mapper.OrderMapper;
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.enums.RoleEnum;
 import com.yean.common.exception.BizException;
+import com.yean.common.lock.RedisBizLock;
+import com.yean.common.operator.Operator;
+import com.yean.common.result.PageResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,7 +61,6 @@ public class TicketServiceImpl implements TicketService {
     public TicketVO apply(TicketApplyDTO dto, Operator operator) {
         requireUserId(operator);
         TicketType.require(dto.getType());
-        // 同一订单同一 SKU 仅允许一张进行中的单；驳回/撤回的终态单不占申请位
         Ticket exist = ticketMapper.selectActiveByOrderNoAndSkuId(dto.getOrderNo(), dto.getSkuId());
         if (exist != null) {
             return toVO(exist, false);
@@ -87,7 +91,6 @@ public class TicketServiceImpl implements TicketService {
                 row.setNum(dto.getNum());
                 row.setAmount(calcAmount(order, dto.getNum()));
                 row.setReason(dto.getReason());
-                row.setLogisticsInfo(dto.getLogisticsInfo());
                 row.setActiveFlag(1);
                 try {
                     ticketMapper.insert(row);
@@ -117,12 +120,14 @@ public class TicketServiceImpl implements TicketService {
     }
 
     @Override
-    public List<TicketVO> page(TicketQueryDTO query, Operator operator) {
+    public PageResult<TicketVO> page(TicketQueryDTO query, Operator operator) {
         TicketQueryDTO cond = query == null ? new TicketQueryDTO() : query;
         applyRoleFilter(cond, operator);
-        return ticketMapper.selectListByQuery(cond).stream()
-                .map(row -> toVO(row, false))
-                .collect(Collectors.toList());
+        long pageNo = cond.pageOrDefault();
+        long pageSize = cond.sizeOrDefault();
+        IPage<Ticket> result = ticketMapper.selectListByQuery(new Page<>(pageNo, pageSize), cond);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(row -> toVO(row, false)).collect(Collectors.toList()));
     }
 
     @Override
@@ -138,7 +143,7 @@ public class TicketServiceImpl implements TicketService {
 
     @Override
     public TicketVO approve(TicketActionDTO dto, Operator operator) {
-        return operate(dto, operator, TicketAction.APPROVE, TicketStatus.APPROVED.getCode());
+        return operate(dto, operator, TicketAction.APPROVE, null);
     }
 
     @Override
@@ -156,7 +161,28 @@ public class TicketServiceImpl implements TicketService {
         return operate(dto, operator, TicketAction.WITHDRAW, TicketStatus.CANCELED.getCode());
     }
 
-    private TicketVO operate(TicketActionDTO dto, Operator operator, TicketAction action, int nextStatus) {
+    @Override
+    public TicketVO ship(TicketActionDTO dto, Operator operator) {
+        if (dto.getLogisticsInfo() == null
+                || !StringUtils.hasText(dto.getLogisticsInfo().getCompany())
+                || !StringUtils.hasText(dto.getLogisticsInfo().getTrackingNo())) {
+            throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "发货须填写快递公司与运单号");
+        }
+        return operate(dto, operator, TicketAction.SHIP, TicketStatus.WAIT_RECEIVE.getCode());
+    }
+
+    @Override
+    public TicketVO receive(TicketActionDTO dto, Operator operator) {
+        requireUserId(operator);
+        return operate(dto, operator, TicketAction.RECEIVE, TicketStatus.WAIT_REFUND.getCode());
+    }
+
+    @Override
+    public TicketVO refund(TicketActionDTO dto, Operator operator) {
+        return operate(dto, operator, TicketAction.REFUND, TicketStatus.DONE.getCode());
+    }
+
+    private TicketVO operate(TicketActionDTO dto, Operator operator, TicketAction action, Integer nextStatusFixed) {
         requireUserId(operator);
         String opKey = "aftersale:op:" + dto.getAftersaleNo() + ":" + action.name();
         if (!tryIdempotent(opKey, OP_IDEMPOTENT_TTL)) {
@@ -164,7 +190,7 @@ public class TicketServiceImpl implements TicketService {
         }
         try {
             TicketVO vo = redisBizLock.execute(LOCK_PREFIX, dto.getAftersaleNo(), () ->
-                    transactionTemplate.execute(status -> doOperate(dto, operator, action, nextStatus)));
+                    transactionTemplate.execute(status -> doOperate(dto, operator, action, nextStatusFixed)));
             if (vo == null) {
                 throw new BizException(ErrorEnum.AFTERSALE_NOT_FOUND);
             }
@@ -175,38 +201,95 @@ public class TicketServiceImpl implements TicketService {
         }
     }
 
-    private TicketVO doOperate(TicketActionDTO dto, Operator operator, TicketAction action, int nextStatus) {
+    private TicketVO doOperate(TicketActionDTO dto, Operator operator, TicketAction action, Integer nextStatusFixed) {
         Ticket row = requireAftersale(dto.getAftersaleNo());
-        if (row.getStatus() == null || row.getStatus() != TicketStatus.PENDING.getCode()) {
-            throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
-        }
-        if (action == TicketAction.WITHDRAW) {
-            if (!row.getUserId().equals(operator.getUserId()) && !isAdmin(operator)) {
-                throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+        int before = row.getStatus() == null ? -1 : row.getStatus();
+        int nextStatus = nextStatusFixed != null ? nextStatusFixed : resolveApproveNext(row);
+        assertTransition(row, operator, action, before);
+        LogisticsInfo logistics = action == TicketAction.SHIP ? dto.getLogisticsInfo() : null;
+        RefundDetail refundDetail = null;
+        if (action == TicketAction.REFUND) {
+            refundDetail = dto.getRefundDetail() != null ? dto.getRefundDetail() : new RefundDetail();
+            if (refundDetail.getAmount() == null) {
+                refundDetail.setAmount(row.getAmount());
             }
-        } else {
-            assertCanAudit(row, operator);
+            if (!StringUtils.hasText(refundDetail.getChannel())) {
+                refundDetail.setChannel("原路退回");
+            }
         }
-        int before = row.getStatus();
         boolean release = releasesApplySlot(nextStatus);
-        ticketMapper.updateStatus(row.getId(), nextStatus, release);
+        ticketMapper.updateStatus(row.getId(), nextStatus, release, logistics, refundDetail);
         if (release) {
-            // 终态释放申请位：该订单该 SKU 允许重新申请
             stringRedisTemplate.delete(applyIdemKey(row.getOrderNo(), row.getSkuId()));
         }
         insertLog(row.getAftersaleNo(), operator, action, before, nextStatus, dto.getRemark());
         localMessageService.insert(row.getAftersaleNo() + ":" + action.name(), LocalMessageServiceImpl.TOPIC_NOTIFY,
                 "{\"aftersaleNo\":\"" + row.getAftersaleNo() + "\",\"event\":\"" + action.name() + "\"}");
         row.setStatus(nextStatus);
+        if (logistics != null) {
+            row.setLogisticsInfo(logistics);
+        }
+        if (refundDetail != null) {
+            row.setRefundDetail(refundDetail);
+        }
         return toVO(row, false);
     }
 
-    /** 驳回 / 撤回进入终态，释放 (orderNo, skuId) 申请位 */
+    private int resolveApproveNext(Ticket row) {
+        TicketType type = TicketType.require(row.getType());
+        // 仅退款跳过发货/收货，直接待退款
+        if (type == TicketType.REFUND_ONLY) {
+            return TicketStatus.WAIT_REFUND.getCode();
+        }
+        return TicketStatus.WAIT_SHIP.getCode();
+    }
+
+    private void assertTransition(Ticket row, Operator operator, TicketAction action, int before) {
+        switch (action) {
+            case APPROVE:
+            case REJECT:
+                if (before != TicketStatus.PENDING.getCode()) {
+                    throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
+                }
+                assertCanAudit(row, operator);
+                break;
+            case WITHDRAW:
+                if (before != TicketStatus.PENDING.getCode()) {
+                    throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
+                }
+                if (!row.getUserId().equals(operator.getUserId()) && !isAdmin(operator)) {
+                    throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+                }
+                break;
+            case SHIP:
+                if (before != TicketStatus.WAIT_SHIP.getCode()) {
+                    throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
+                }
+                assertCanShip(operator);
+                break;
+            case RECEIVE:
+                if (before != TicketStatus.WAIT_RECEIVE.getCode()) {
+                    throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
+                }
+                if (!row.getUserId().equals(operator.getUserId()) && !isAdmin(operator)) {
+                    throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+                }
+                break;
+            case REFUND:
+                if (before != TicketStatus.WAIT_REFUND.getCode()) {
+                    throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
+                }
+                assertCanRefund(row, operator);
+                break;
+            default:
+                throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW);
+        }
+    }
+
     private static boolean releasesApplySlot(int status) {
         return status == TicketStatus.REJECTED.getCode() || status == TicketStatus.CANCELED.getCode();
     }
 
-    /** 部分售后按数量比例折算金额 */
     private static BigDecimal calcAmount(OrderInfo order, Integer num) {
         if (num == null || num.equals(order.getNum())) {
             return order.getAmount();
@@ -254,7 +337,7 @@ public class TicketServiceImpl implements TicketService {
 
     private void assertCanView(Ticket row, Operator operator) {
         if (operator == null || operator.getUserId() == null || isAdmin(operator)
-                || isWarehouseOrFinance(operator)) {
+                || isWarehouse(operator)) {
             return;
         }
         if (RoleEnum.USER.name().equalsIgnoreCase(operator.getRole())
@@ -268,11 +351,29 @@ public class TicketServiceImpl implements TicketService {
     }
 
     private void assertCanAudit(Ticket row, Operator operator) {
-        String role = operator.getRole();
-        if (isAdmin(operator) || isWarehouseOrFinance(operator)) {
+        if (isAdmin(operator)) {
             return;
         }
-        if (RoleEnum.MERCHANT.name().equalsIgnoreCase(role) && row.getMerchantId().equals(operator.getUserId())) {
+        if (RoleEnum.MERCHANT.name().equalsIgnoreCase(operator.getRole())
+                && row.getMerchantId().equals(operator.getUserId())) {
+            return;
+        }
+        throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+    }
+
+    private void assertCanShip(Operator operator) {
+        if (isAdmin(operator) || RoleEnum.WAREHOUSE.name().equalsIgnoreCase(operator.getRole())) {
+            return;
+        }
+        throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+    }
+
+    private void assertCanRefund(Ticket row, Operator operator) {
+        if (isAdmin(operator)) {
+            return;
+        }
+        if (RoleEnum.MERCHANT.name().equalsIgnoreCase(operator.getRole())
+                && row.getMerchantId().equals(operator.getUserId())) {
             return;
         }
         throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
@@ -336,12 +437,9 @@ public class TicketServiceImpl implements TicketService {
         return operator.getRole() != null && RoleEnum.ADMIN.name().equalsIgnoreCase(operator.getRole());
     }
 
-    private static boolean isWarehouseOrFinance(Operator operator) {
-        if (operator.getRole() == null) {
-            return false;
-        }
-        return RoleEnum.WAREHOUSE.name().equalsIgnoreCase(operator.getRole())
-                || RoleEnum.FINANCE.name().equalsIgnoreCase(operator.getRole());
+    private static boolean isWarehouse(Operator operator) {
+        return operator.getRole() != null
+                && RoleEnum.WAREHOUSE.name().equalsIgnoreCase(operator.getRole());
     }
 
     private TicketVO toVO(Ticket row, boolean withLogs) {

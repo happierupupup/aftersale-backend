@@ -2,6 +2,7 @@ package com.yean.stock.inventory.controller;
 
 import com.yean.common.operator.OperatorResolver;
 import com.yean.common.operatelog.OperateLog;
+import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import com.yean.stock.sku.dto.SkuVO;
 import com.yean.stock.inventory.dto.InventoryChangeDTO;
@@ -24,7 +25,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import java.util.List;
 
 @Tag(name = "库存变动")
 @Validated
@@ -66,9 +66,9 @@ public class InventoryController {
         return R.ok(inventoryService.getBySkuId(skuId));
     }
 
-    @Operation(summary = "库存流水列表")
+    @Operation(summary = "库存流水分页。page/size 默认 1/10，size 上限 50")
     @GetMapping("/flow/list")
-    public R<List<InventoryFlowVO>> flows(InventoryFlowQueryDTO query) {
+    public R<PageResult<InventoryFlowVO>> flows(InventoryFlowQueryDTO query) {
         return R.ok(inventoryService.listFlows(query));
     }
 }

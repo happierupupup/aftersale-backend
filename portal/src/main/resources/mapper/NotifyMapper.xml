@@ -18,14 +18,14 @@
         SELECT id, user_id, title, content, channel, biz_type, read_flag, create_time
         FROM sys_notify
         <where>
-            <if test="userId != null">
-                AND user_id = #{userId}
+            <if test="q.userId != null">
+                AND user_id = #{q.userId}
             </if>
-            <if test="channel != null and channel != ''">
-                AND channel = #{channel}
+            <if test="q.channel != null and q.channel != ''">
+                AND channel = #{q.channel}
             </if>
-            <if test="readFlag != null">
-                AND read_flag = #{readFlag}
+            <if test="q.readFlag != null">
+                AND read_flag = #{q.readFlag}
             </if>
         </where>
         ORDER BY id DESC

@@ -1,8 +1,11 @@
 package com.yean.stock.inventory.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.exception.BizException;
 import com.yean.common.lock.RedisBizLock;
+import com.yean.common.result.PageResult;
 import com.yean.stock.sku.cache.SkuCache;
 import com.yean.stock.sku.dto.SkuDetail;
 import com.yean.stock.sku.dto.SkuVO;
@@ -23,7 +26,6 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -65,9 +67,12 @@ public class InventoryServiceImpl implements InventoryService {
     }
 
     @Override
-    public List<InventoryFlowVO> listFlows(InventoryFlowQueryDTO query) {
+    public PageResult<InventoryFlowVO> listFlows(InventoryFlowQueryDTO query) {
         InventoryFlowQueryDTO cond = query == null ? new InventoryFlowQueryDTO() : query;
-        return inventoryFlowMapper.selectFlowList(cond).stream().map(this::toFlowVO).collect(Collectors.toList());
+        IPage<InventoryFlow> result = inventoryFlowMapper.selectFlowList(
+                new Page<>(cond.pageOrDefault(), cond.sizeOrDefault()), cond);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(this::toFlowVO).collect(Collectors.toList()));
     }
 
     private InventoryChangeVO change(InventoryChangeDTO dto, InventoryFlowType type, String operator) {

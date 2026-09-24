@@ -31,14 +31,14 @@
         SELECT <include refid="InventoryFlowColumns"/>
         FROM stock_flow
         <where>
-            <if test="skuId != null">
-                AND sku_id = #{skuId}
+            <if test="q.skuId != null">
+                AND sku_id = #{q.skuId}
             </if>
-            <if test="bizNo != null and bizNo != ''">
-                AND biz_no = #{bizNo}
+            <if test="q.bizNo != null and q.bizNo != ''">
+                AND biz_no = #{q.bizNo}
             </if>
-            <if test="type != null and type != ''">
-                AND type = #{type}
+            <if test="q.type != null and q.type != ''">
+                AND type = #{q.type}
             </if>
         </where>
         ORDER BY id DESC

@@ -21,7 +21,7 @@ public class UserCreateDTO {
     private String password;
 
     @NotEmpty(message = "至少分配一个角色")
-    @Schema(description = "角色列表，可多选：USER / MERCHANT / ADMIN / WAREHOUSE / FINANCE",
+    @Schema(description = "角色列表，可多选：USER / MERCHANT / ADMIN / WAREHOUSE",
             example = "[\"USER\"]", requiredMode = Schema.RequiredMode.REQUIRED)
     private List<String> roles;
 

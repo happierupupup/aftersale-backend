@@ -16,11 +16,11 @@ public enum PermissionEnum {
     USER_MANAGE("user:manage", "用户管理", RoleEnum.ADMIN),
     DEPT_MANAGE("dept:manage", "部门管理", RoleEnum.ADMIN),
     ROLE_GRANT("role:grant", "角色授权", RoleEnum.ADMIN),
-    USER_QUERY("user:query", "查询用户", RoleEnum.ADMIN, RoleEnum.MERCHANT, RoleEnum.WAREHOUSE, RoleEnum.FINANCE, RoleEnum.USER),
+    USER_QUERY("user:query", "查询用户", RoleEnum.ADMIN, RoleEnum.MERCHANT, RoleEnum.WAREHOUSE, RoleEnum.USER),
     AFTERSALE_APPLY("aftersale:apply", "提交售后", RoleEnum.USER, RoleEnum.ADMIN),
     AFTERSALE_MERCHANT_APPROVE("aftersale:merchant:approve", "商家审核", RoleEnum.MERCHANT, RoleEnum.ADMIN),
-    AFTERSALE_WAREHOUSE("aftersale:warehouse", "仓库验货", RoleEnum.WAREHOUSE, RoleEnum.ADMIN),
-    AFTERSALE_FINANCE("aftersale:finance", "财务退款", RoleEnum.FINANCE, RoleEnum.ADMIN),
+    AFTERSALE_WAREHOUSE("aftersale:warehouse", "仓库发货", RoleEnum.WAREHOUSE, RoleEnum.ADMIN),
+    AFTERSALE_REFUND("aftersale:refund", "商家退款", RoleEnum.MERCHANT, RoleEnum.ADMIN),
     STOCK_MANAGE("stock:manage", "库存管理", RoleEnum.WAREHOUSE, RoleEnum.ADMIN);
 
     private final String code;

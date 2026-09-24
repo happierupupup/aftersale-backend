@@ -1,12 +1,11 @@
 package com.yean.aftersale.order.service;
 
 import com.yean.aftersale.order.dto.OrderVO;
-
-import java.util.List;
+import com.yean.common.result.PageResult;
 
 public interface OrderService {
 
     OrderVO getByOrderNo(String orderNo);
 
-    List<OrderVO> listByUserId(Long userId);
+    PageResult<OrderVO> listByUserId(Long userId, long page, long size);
 }

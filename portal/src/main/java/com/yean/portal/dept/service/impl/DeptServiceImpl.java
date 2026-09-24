@@ -1,7 +1,10 @@
 package com.yean.portal.dept.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.exception.BizException;
+import com.yean.common.result.PageResult;
 import com.yean.portal.config.RedisLock;
 import com.yean.portal.dept.dto.DeptCreateDTO;
 import com.yean.portal.dept.dto.DeptQueryDTO;
@@ -39,9 +42,11 @@ public class DeptServiceImpl implements DeptService {
     }
 
     @Override
-    public List<DeptVO> list(DeptQueryDTO query) {
+    public PageResult<DeptVO> list(DeptQueryDTO query) {
         DeptQueryDTO cond = query == null ? new DeptQueryDTO() : query;
-        return deptMapper.selectDeptList(cond).stream().map(this::toVO).collect(Collectors.toList());
+        IPage<Dept> result = deptMapper.selectDeptList(new Page<>(cond.pageOrDefault(), cond.sizeOrDefault()), cond);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
     }
 
     @Override
@@ -50,7 +55,7 @@ public class DeptServiceImpl implements DeptService {
     }
 
     private List<DeptVO> buildForest() {
-        List<DeptVO> all = deptMapper.selectDeptList(new DeptQueryDTO()).stream()
+        List<DeptVO> all = deptMapper.selectList(null).stream()
                 .map(this::toVO)
                 .collect(Collectors.toList());
         Map<Long, DeptVO> map = all.stream().collect(Collectors.toMap(DeptVO::getId, d -> d));

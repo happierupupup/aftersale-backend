@@ -1,5 +1,6 @@
 package com.yean.portal.dept.service;
 
+import com.yean.common.result.PageResult;
 import com.yean.portal.dept.dto.DeptCreateDTO;
 import com.yean.portal.dept.dto.DeptQueryDTO;
 import com.yean.portal.dept.dto.DeptUpdateDTO;
@@ -11,7 +12,7 @@ public interface DeptService {
 
     DeptVO getById(Long id);
 
-    List<DeptVO> list(DeptQueryDTO query);
+    PageResult<DeptVO> list(DeptQueryDTO query);
 
     List<DeptVO> tree();
 

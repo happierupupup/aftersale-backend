@@ -16,7 +16,7 @@ public class GatewayProperties {
 
     @Data
     public static class Jwt {
-        private String secret = "yean-aftersale-gateway-jwt-hs256-secret-key";
+        private String secret = "gateway:jwt:secret-key";
         private long expireSeconds = 7200;
     }
 

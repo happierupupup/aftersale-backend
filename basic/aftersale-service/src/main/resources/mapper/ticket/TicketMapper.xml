@@ -49,29 +49,29 @@
         SELECT <include refid="TicketColumns"/>
         FROM aftersale_order
         <where>
-            <if test="status != null">
-                AND status = #{status}
+            <if test="q.status != null">
+                AND status = #{q.status}
             </if>
-            <if test="type != null">
-                AND type = #{type}
+            <if test="q.type != null">
+                AND type = #{q.type}
             </if>
-            <if test="orderNo != null and orderNo != ''">
-                AND order_no = #{orderNo}
+            <if test="q.orderNo != null and q.orderNo != ''">
+                AND order_no = #{q.orderNo}
             </if>
-            <if test="aftersaleNo != null and aftersaleNo != ''">
-                AND aftersale_no = #{aftersaleNo}
+            <if test="q.aftersaleNo != null and q.aftersaleNo != ''">
+                AND aftersale_no = #{q.aftersaleNo}
             </if>
-            <if test="userId != null">
-                AND user_id = #{userId}
+            <if test="q.userId != null">
+                AND user_id = #{q.userId}
             </if>
-            <if test="merchantId != null">
-                AND merchant_id = #{merchantId}
+            <if test="q.merchantId != null">
+                AND merchant_id = #{q.merchantId}
             </if>
-            <if test="startTime != null">
-                AND create_time &gt;= #{startTime}
+            <if test="q.startTime != null">
+                AND create_time &gt;= #{q.startTime}
             </if>
-            <if test="endTime != null">
-                AND create_time &lt;= #{endTime}
+            <if test="q.endTime != null">
+                AND create_time &lt;= #{q.endTime}
             </if>
         </where>
         ORDER BY id DESC
@@ -82,6 +82,12 @@
         SET status = #{status}
         <if test="releaseActive">
             , active_flag = NULL
+        </if>
+        <if test="logisticsInfo != null">
+            , logistics_info = #{logisticsInfo, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler}
+        </if>
+        <if test="refundDetail != null">
+            , refund_detail = #{refundDetail, typeHandler=com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler}
         </if>
         WHERE id = #{id}
     </update>

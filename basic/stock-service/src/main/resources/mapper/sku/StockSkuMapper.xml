@@ -42,11 +42,11 @@
         FROM stock_sku s
         LEFT JOIN stock_count c ON s.sku_id = c.sku_id
         <where>
-            <if test="skuId != null">
-                AND s.sku_id = #{skuId}
+            <if test="q.skuId != null">
+                AND s.sku_id = #{q.skuId}
             </if>
-            <if test="skuName != null and skuName != ''">
-                AND s.sku_name LIKE CONCAT('%', #{skuName}, '%')
+            <if test="q.skuName != null and q.skuName != ''">
+                AND s.sku_name LIKE CONCAT('%', #{q.skuName}, '%')
             </if>
         </where>
         ORDER BY s.id ASC

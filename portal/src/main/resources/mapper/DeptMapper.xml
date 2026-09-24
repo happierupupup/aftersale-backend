@@ -20,11 +20,11 @@
         SELECT <include refid="DeptColumns"/>
         FROM sys_dept
         <where>
-            <if test="name != null and name != ''">
-                AND name LIKE CONCAT('%', #{name}, '%')
+            <if test="q.name != null and q.name != ''">
+                AND name LIKE CONCAT('%', #{q.name}, '%')
             </if>
-            <if test="parentId != null">
-                AND parent_id = #{parentId}
+            <if test="q.parentId != null">
+                AND parent_id = #{q.parentId}
             </if>
         </where>
         ORDER BY level ASC, id ASC

@@ -1,9 +1,12 @@
 package com.yean.portal.user.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.enums.PermissionEnum;
 import com.yean.common.enums.RoleEnum;
 import com.yean.common.exception.BizException;
+import com.yean.common.result.PageResult;
 import com.yean.portal.config.RedisLock;
 import com.yean.portal.dept.entity.Dept;
 import com.yean.portal.dept.mapper.DeptMapper;
@@ -61,9 +64,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public List<UserVO> list(UserQueryDTO query) {
+    public PageResult<UserVO> list(UserQueryDTO query) {
         UserQueryDTO cond = query == null ? new UserQueryDTO() : query;
-        return userMapper.selectUserList(cond).stream().map(this::toVO).collect(Collectors.toList());
+        IPage<User> result = userMapper.selectUserList(new Page<>(cond.pageOrDefault(), cond.sizeOrDefault()), cond);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
     }
 
     @Override

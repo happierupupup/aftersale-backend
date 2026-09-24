@@ -2,6 +2,7 @@ package com.yean.stock.sku.controller;
 
 import com.yean.common.operator.OperatorResolver;
 import com.yean.common.operatelog.OperateLog;
+import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import com.yean.stock.sku.dto.SkuCreateDTO;
 import com.yean.stock.sku.dto.SkuQueryDTO;
@@ -25,7 +26,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import java.util.List;
 
 @Tag(name = "SKU 档案")
 @Validated
@@ -37,9 +37,9 @@ public class SkuController {
     private final SkuService skuService;
     private final OperatorResolver operatorResolver;
 
-    @Operation(summary = "SKU 列表")
+    @Operation(summary = "SKU 分页列表。page/size 默认 1/10，size 上限 50")
     @GetMapping("/list")
-    public R<List<SkuVO>> list(SkuQueryDTO query) {
+    public R<PageResult<SkuVO>> list(SkuQueryDTO query) {
         return R.ok(skuService.list(query));
     }
 

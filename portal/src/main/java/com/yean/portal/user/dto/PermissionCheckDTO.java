@@ -15,7 +15,7 @@ public class PermissionCheckDTO {
     private Long userId;
 
     @NotBlank(message = "权限码不能为空")
-    @Schema(description = "权限码，如 role:grant / aftersale:apply / aftersale:merchant:approve / aftersale:warehouse / aftersale:finance / user:manage / dept:manage / stock:manage",
+    @Schema(description = "权限码，如 role:grant / aftersale:apply / aftersale:merchant:approve / aftersale:warehouse / aftersale:refund / user:manage / dept:manage / stock:manage",
             example = "aftersale:merchant:approve", requiredMode = Schema.RequiredMode.REQUIRED)
     private String permission;
 }

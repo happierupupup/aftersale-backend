@@ -1,8 +1,11 @@
 package com.yean.stock.sku.service.impl;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
 import com.yean.common.exception.BizException;
 import com.yean.common.lock.RedisBizLock;
+import com.yean.common.result.PageResult;
 import com.yean.stock.inventory.dto.StockCount;
 import com.yean.stock.inventory.mapper.StockCountMapper;
 import com.yean.stock.sku.cache.SkuCache;
@@ -20,7 +23,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.util.StringUtils;
 
-import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,9 +43,12 @@ public class SkuServiceImpl implements SkuService {
     }
 
     @Override
-    public List<SkuVO> list(SkuQueryDTO query) {
+    public PageResult<SkuVO> list(SkuQueryDTO query) {
         SkuQueryDTO cond = query == null ? new SkuQueryDTO() : query;
-        return stockSkuMapper.selectDetailList(cond).stream().map(this::toVO).collect(Collectors.toList());
+        IPage<SkuDetail> result = stockSkuMapper.selectDetailList(
+                new Page<>(cond.pageOrDefault(), cond.sizeOrDefault()), cond);
+        return PageResult.of(result.getCurrent(), result.getSize(), result.getTotal(),
+                result.getRecords().stream().map(this::toVO).collect(Collectors.toList()));
     }
 
     @Override

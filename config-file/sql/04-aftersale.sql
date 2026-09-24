@@ -3,7 +3,8 @@ USE aftersale_core;
 -- ---------------------------------------------------------------------------
 -- aftersale-service 售后核心库（不含模拟订单；订单见 05-order.sql / aftersale_order）
 -- 售后类型 type：1退货 2换货 3仅退款
--- 售后状态 status：0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回 7已撤回
+-- 售后状态 status：0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回
+-- 主链路：申请→待审核→(通过)待仓库发货→待用户收货→待退款→已办结；仅退款审核后直达待退款
 -- 站内信走 portal.sys_notify，本库不建 notification
 -- ---------------------------------------------------------------------------
 
@@ -20,7 +21,7 @@ CREATE TABLE aftersale_order (
     user_id              BIGINT         NOT NULL COMMENT '申请用户ID',
     merchant_id          BIGINT         NOT NULL COMMENT '商家ID',
     type                 TINYINT        NOT NULL COMMENT '1退货 2换货 3仅退款',
-    status               TINYINT        NOT NULL DEFAULT 0 COMMENT '0待审核 1审核通过 2待寄回 3待验货 4待退款 5已办结 6已驳回 7已撤回',
+    status               TINYINT        NOT NULL DEFAULT 0 COMMENT '0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回',
     sku_id               BIGINT         NOT NULL COMMENT 'SKU ID',
     sku_name             VARCHAR(128)   NOT NULL COMMENT '商品名称快照',
     num                  INT            NOT NULL COMMENT '售后数量',

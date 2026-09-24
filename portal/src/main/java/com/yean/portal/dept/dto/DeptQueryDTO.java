@@ -1,11 +1,14 @@
 package com.yean.portal.dept.dto;
 
+import com.yean.common.result.PageQuery;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 @Data
+@EqualsAndHashCode(callSuper = true)
 @Schema(description = "部门列表查询条件，均为可选")
-public class DeptQueryDTO {
+public class DeptQueryDTO extends PageQuery {
 
     @Schema(description = "部门名称，模糊匹配", example = "运营")
     private String name;

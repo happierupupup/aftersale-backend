@@ -1,5 +1,6 @@
 package com.yean.portal.notify.controller;
 
+import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import com.yean.portal.notify.dto.NotifyQueryDTO;
 import com.yean.portal.notify.dto.NotifySendDTO;
@@ -17,7 +18,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import javax.validation.Valid;
-import java.util.List;
 
 @Tag(name = "通知")
 @RestController
@@ -33,9 +33,9 @@ public class NotifyController {
         return R.ok(notifyService.send(dto));
     }
 
-    @Operation(summary = "通知列表")
+    @Operation(summary = "通知分页列表。page/size 默认 1/10，size 上限 50")
     @GetMapping("/list")
-    public R<List<NotifyVO>> list(NotifyQueryDTO query) {
+    public R<PageResult<NotifyVO>> list(NotifyQueryDTO query) {
         return R.ok(notifyService.list(query));
     }
 

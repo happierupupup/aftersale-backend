@@ -31,7 +31,7 @@ public class TicketApplyDTO {
     @Schema(description = "申请原因")
     private String reason;
 
-    @Schema(description = "物流信息，可后补")
+    @Schema(description = "申请阶段不要填物流；仓库发货接口写入")
     private LogisticsInfo logisticsInfo;
 
     @Schema(description = "仅本地直连 8082 填写。正式经网关不要填")

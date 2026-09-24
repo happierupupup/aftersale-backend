@@ -2,7 +2,7 @@ USE aftersale_user;
 
 -- ---------------------------------------------------------------------------
 -- portal 用户中心库
--- 角色见 RoleEnum：USER / MERCHANT / ADMIN / WAREHOUSE / FINANCE
+-- 角色见 RoleEnum：USER / MERCHANT / ADMIN / WAREHOUSE
 -- 一人可多角色，关系表 sys_user_role；sys_user.role 存主角色（列表第一项）
 -- 演示账号密码均为 123456（BCrypt）
 -- ---------------------------------------------------------------------------
@@ -87,31 +87,27 @@ CREATE TABLE sys_operate_log (
 --   ├── 运营中心
 --   │     ├── 商家组
 --   │     └── 客服组
---   ├── 仓储中心
---   │     └── 质检组
---   └── 财务中心
+--   └── 仓储中心
+--         └── 质检组
 INSERT INTO sys_dept (id, name, parent_id, level) VALUES
 (1, '总公司',   0, 1),
 (2, '运营中心', 1, 2),
 (3, '商家组',   2, 3),
 (4, '客服组',   2, 3),
 (5, '仓储中心', 1, 2),
-(6, '质检组',   5, 3),
-(7, '财务中心', 1, 2);
+(6, '质检组',   5, 3);
 
 -- 密码 123456
 INSERT INTO sys_user (id, username, password, role, dept_id) VALUES
 (1, '00000',     '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'ADMIN',     1),
 (2, 'AAA代购',  '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'MERCHANT',  3),
 (3, 'AAA极速发货', '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'WAREHOUSE', 5),
-(4, '打工人',   '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'FINANCE',   7),
 (5, '精神状态良好',      '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'USER',      4);
 
 INSERT INTO sys_user_role (user_id, role) VALUES
 (1, 'ADMIN'),
 (2, 'MERCHANT'),
 (3, 'WAREHOUSE'),
-(4, 'FINANCE'),
 (5, 'USER');
 
 INSERT INTO sys_notify (user_id, title, content, channel, biz_type, read_flag) VALUES

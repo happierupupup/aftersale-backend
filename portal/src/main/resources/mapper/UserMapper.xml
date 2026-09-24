@@ -29,17 +29,17 @@
         FROM sys_user u
         LEFT JOIN sys_user_role ur ON ur.user_id = u.id
         <where>
-            <if test="username != null and username != ''">
-                AND u.username LIKE CONCAT('%', #{username}, '%')
+            <if test="q.username != null and q.username != ''">
+                AND u.username LIKE CONCAT('%', #{q.username}, '%')
             </if>
-            <if test="role != null and role != ''">
-                AND ur.role = #{role}
+            <if test="q.role != null and q.role != ''">
+                AND ur.role = #{q.role}
             </if>
-            <if test="deptId != null">
-                AND u.dept_id = #{deptId}
+            <if test="q.deptId != null">
+                AND u.dept_id = #{q.deptId}
             </if>
-            <if test="status != null">
-                AND u.status = #{status}
+            <if test="q.status != null">
+                AND u.status = #{q.status}
             </if>
         </where>
         ORDER BY u.id DESC
