@@ -7,13 +7,8 @@ spring:
           uri: http://127.0.0.1:8081
           predicates:
             - Path=/user/**,/dept/**,/notify/**,/operatelog/**
-        - id: aftersale-service
+        - id: trade-service
           uri: http://127.0.0.1:8082
           predicates:
-            # 模拟订单接口在最简前缀 /order/**，售后单在 /aftersale/**
-            - Path=/aftersale/**,/order/**
-        - id: stock-service
-          uri: http://127.0.0.1:8083
-          predicates:
-            # SKU 档案在最简前缀 /sku/**，库存变动在 /stock/**
-            - Path=/stock/**,/sku/**
+            # 订单 / 售后 / SKU / 库存 同属 trade-service
+            - Path=/order/**,/aftersale/**,/stock/**,/sku/**

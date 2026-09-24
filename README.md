@@ -1,103 +1,75 @@
 # aftersale-backend
 
-基于Spring Cloud开发的电商售后退换货平台，包括 **用户中心（portal）** 、 **网关认证（gateway）** 以及 **库存**、**售后**两大服务。
+Spring Cloud 电商**售后退换货** Demo：网关鉴权 + 用户中心 + 交易业务（订单 / 售后 / SKU 库存）。
 
-## 功能（当前）
+技术栈：Spring Boot 2.7、Spring Cloud Gateway、OpenFeign、MyBatis-Plus、Redisson、MySQL 8、Redis。
 
-- **portal**：用户 / 部门 CRUD、多角色、权限校验、登录校验（不签发 Token）、写操作 Redis 锁、**站内通知**
-- **gateway**：登录签发 JWT、校验 Token、续期、登出黑名单、白名单、把用户信息注入 `X-User-*` 后转发下游
-- **stock-service**：SKU 档案 + 库存扣减/回退
-- **aftersale-service**：模拟订单、申请/分页/详情、审核/驳回/撤回/发货/收货/退款（精简状态机，无 Activiti）
-- **统一返回**：`{code, msg, data}`，分页 `PageResult`（page/size/total/pages/records），错误码见 `ErrorEnum`
-
-## 模块
+## 模块与端口
 
 ```
 aftersale-backend
-├── common/                 # 公共 jar：R、BizException、ErrorEnum、角色权限枚举
-├── portal/                 # 用户中心，端口 8081，库 aftersale_user（含 notify）
-├── gateway/                # 网关，端口 8080，不连业务库
+├── common/              # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、Operator
+├── portal/              # 用户中心 :8081，库 aftersale_user
+├── gateway/             # 网关鉴权 :8080（不连业务库）
 ├── basic/
-│   ├── stock-service/      # 库存，端口 8083，库 aftersale_stock
-│   └── aftersale-service/  # 售后，端口 8082，库 aftersale_core
+│   └── trade-service/   # 交易业务 :8082（订单 + 售后 + SKU/库存）
 ├── config-file/
-│   ├── sql/                # 建库建表脚本
-│   └── rocketmq/           # Broker 配置
-└── docker-compose.yml      # 可选：RocketMQ、Nacos
+│   ├── sql/             # 建库建表
+│   ├── samples/         # 样例文件（如订单 CSV）
+│   └── rocketmq/        # Broker 配置
+└── docker-compose.yml   # 可选：Nacos、RocketMQ
 ```
 
 | 服务 | 端口 | 职责 |
 |------|------|------|
-| gateway | 8080 | 登录鉴权、路由 |
-| portal | 8081 | 用户 / 部门 / 通知 |
-| aftersale-service | 8082 | 售后 |
-| stock-service | 8083 | SKU 档案 + 库存变动 |
+| gateway | 8080 | JWT 登录/续期/登出、路由、注入 `X-User-*` |
+| portal | 8081 | 用户 / 部门 / 通知 / 操作日志落库 |
+| trade-service | 8082 | 订单、售后单、SKU 档案、库存扣减回退 |
 
-## 代码层级（当前）
+`trade-service` 包结构（`com.yean.trade`）：
 
-```
-aftersale-backend
-├── common/src/main/java/com/yean/common/
-│   ├── result/R PageQuery PageResult  # 统一返回与分页
-│   ├── exception/               # BizException、MVC GlobalExceptionHandler
-│   ├── enums/                   # ErrorEnum、RoleEnum、PermissionEnum
-│   ├── lock/RedisBizLock        # Redisson 业务锁（stock / aftersale 共用）
-│   ├── tx/TxAutoConfiguration   # TransactionTemplate
-│   ├── operator/                # Operator、OperatorResolver、yean.operator.allow-body
-│   ├── operatelog/              # @OperateLog + Feign
-│   ├── mybatis/MybatisPlusAutoConfiguration  # 分页插件
-│   └── web/EmptyStringToNullAdvice
-│
-├── portal/ …/com.yean.portal/
-│   ├── user/                    # 用户 CRUD、authenticate、角色授权
-│   ├── dept/                    # 部门树
-│   ├── notify/                  # 站内通知
-│   └── config/                  # Redis、写操作锁
-│
-├── gateway/ …/com.yean.gateway/
-│   ├── handler/                 # 登录 / 登出 / 续期 RouterFunction
-│   ├── auth/                    # 调 portal 校验账号
-│   ├── jwt/                     # 签发、解析、Redis 黑名单
-│   ├── filter/AuthGlobalFilter  # 白名单 + 注入 X-User-*
-│   └── exception/               # WebFlux 统一 JSON 错误
-│
-├── basic/stock-service/ …/com.yean.stock/
-│   ├── sku/                     # SKU 档案 CRUD（表 stock_sku）
-│   ├── inventory/               # 计数 CAS + 扣减/回退/流水（stock_count / stock_flow）
-│   └── config/                  # Redis、SkuCache、StockProperties
-│
-└── basic/aftersale-service/ …/com.yean.aftersale/
-    ├── order/                   # 模拟订单（库 aftersale_order，@DS("order")）
-    ├── ticket/                  # 售后：申请→审核→仓库发货→用户收货→退款
-    └── message/                 # 本地消息表 outbox（先落库，暂不发 MQ）
-```
+| 包 | 含义 | 库 |
+|----|------|-----|
+| `order` | 模拟订单 | `aftersale_order` |
+| `ticket` | 售后单（表 `aftersale_ticket`） | `aftersale_core` |
+| `sku` | SKU 档案 | `aftersale_stock` |
+| `inventory` | 库存计数 / 流水 | `aftersale_stock` |
+| `message` | 本地消息 outbox（暂不发 MQ） | `aftersale_core` |
 
-售后主链路状态：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（另有 `5已驳回` / `6已撤回`）。仅退款审核通过后直达待退款。
+三库用 dynamic-datasource：`core`（主）/ `order` / `stock`。
 
-接口前缀（均经 gateway 转发，也可本服务端口直连）：
+## 能力概览
+
+- **portal**：用户部门 CRUD、多角色、登录校验（不签发 Token）、站内通知、接收各服务操作日志
+- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、身份 Header 转发下游
+- **trade / order**：列表、详情、单笔新增、CSV 批量上传
+- **trade / ticket**：申请 → 审核 → 仓库发货 → 用户收货 → 退款（仅退款审核后直达待退款）；驳回 / 撤回
+- **trade / sku + inventory**：SKU CRUD；扣减 / 回退（幂等 `bizNo` + Redisson 锁 + CAS）
+- **统一返回**：`{code, msg, data}`，分页 `PageResult`，错误码 `ErrorEnum`
+
+售后状态：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（另有 `5已驳回` / `6已撤回`）。
+
+## 接口前缀（经 gateway，也可直连服务端口）
 
 | 模块 | 路径 |
 |------|------|
-| 登录登出 | `/api/auth/**`（只在 gateway） |
-| 用户 / 部门 / 通知 | `/user/**` `/dept/**` `/notify/**` → portal |
-| SKU 档案 | `/sku/**` → stock-service |
-| 库存变动 | `/stock/deduct` `rollback` `{skuId}` `flow/list` → stock-service |
-| 模拟订单 | `/order/**` → aftersale-service |
-| 售后单 | `/aftersale/apply` `page` `{aftersaleNo}` `approve` `reject` `withdraw` `ship` `receive` `refund` |
+| 登录登出 | `/api/auth/**`（仅 gateway） |
+| 用户 / 部门 / 通知 / 操作日志 | `/user/**` `/dept/**` `/notify/**` `/operatelog/**` → portal |
+| 订单 | `/order/**` → trade |
+| 售后 | `/aftersale/**` → trade |
+| SKU | `/sku/**` → trade |
+| 库存 | `/stock/**` → trade |
 
+## 环境
 
-## 环境（根据自己的端口、账号密码调整配置）
+- JDK 17、Maven 3.x（可用 IDEA 自带）
+- MySQL 8、Redis（本地须启动，trade / portal / gateway 均依赖）
 
-- JDK 17
-- Maven 3.x（可用 IDEA 自带）
-- MySQL 8
-- Redis 7
+按本机账号密码改各服务 `application.yml`。
 
 ## 使用方法
 
 ### 1. MySQL
-
-本机已安装时，启动后导入脚本（密码按你的实际修改）：
 
 ```bash
 mysql -uroot -p < config-file/sql/01-init.sql
@@ -107,82 +79,95 @@ mysql -uroot -p < config-file/sql/04-aftersale.sql
 mysql -uroot -p < config-file/sql/05-order.sql
 ```
 
-`01` 建四个库；`02` 用户中心；`03` 库存（SKU 档案 + 计数）；`04` 售后表；`05` 模拟订单（独立库 aftersale_order）。演示订单挂在用户 id=5（精神状态良好），商家 id=2（AAA代购）。
+| 脚本 | 库 / 内容 |
+|------|-----------|
+| `01` | 建库：`aftersale_user` / `aftersale_stock` / `aftersale_core` / `aftersale_order` |
+| `02` | 用户中心 + 演示账号 |
+| `03` | SKU 档案 + 库存计数 / 流水 |
+| `04` | 售后单 `aftersale_ticket` + 操作日志 + outbox |
+| `05` | 模拟订单 |
+
+演示账号（密码均为 `123456`）：
+
+| 用户名 | 角色 | id |
+|--------|------|-----|
+| `00000` | ADMIN | 1 |
+| `AAA代购` | MERCHANT | 2 |
+| `AAA极速发货` | WAREHOUSE | 3 |
+| `精神状态良好` | USER | 5 |
+
+演示订单挂在用户 id=5、商家 id=2（见 `05-order.sql`）。表结构变更后若本地已有旧库，需重导或按 `problem.md` 迁移（例如售后表曾更名为 `aftersale_ticket`）。
 
 ### 2. Redis
 
-portal 写用户/部门要加锁，gateway 登出黑名单要用 Redis，库存扣减、售后单号/幂等/审核锁也走 Redis。
-
 ```bash
 redis-server
+redis-cli ping    # PONG
 ```
 
-另开终端检查：
+用途：gateway 登出黑名单、业务锁、SKU 缓存、单号序号、售后幂等键等。未启动时 trade-service 会因 Redisson 连不上而失败。
 
-```bash
-redis-cli ping    # 应返回 PONG
-```
+### 3. IDEA 启动
 
-关掉：`Ctrl+C`，或 `redis-cli shutdown`。
-
-### 3. IDEA 运行
-
-1. 用 IntelliJ 打开本仓库根目录，选 **JDK 17**，Maven 重新加载。
-2. 先启动 **portal**：运行 `com.yean.portal.PortalApplication`。
-3. 再启动 **gateway**：运行 `com.yean.gateway.GatewayApplication`。
-4. 库存：**stock-service** 运行 `com.yean.stock.StockApplication`（端口 8083）。
-5. 售后：**aftersale-service** 运行 `com.yean.aftersale.AftersaleApplication`（端口 8082）。
-
-默认 profile 是 `local`（不注册 Nacos）。要注册 Nacos 时，运行配置加上：
-
-```
---spring.profiles.active=nacos
-```
-
-并保证 Nacos 已启动。
+1. 打开仓库根目录，JDK 17，Maven Reload。
+2. 启动顺序：
+   - `com.yean.portal.PortalApplication`
+   - `com.yean.gateway.GatewayApplication`
+   - `com.yean.trade.TradeApplication`
+3. 默认 profile `local`（不注册 Nacos）。要用 Nacos：`--spring.profiles.active=nacos`，并先起 Nacos。
 
 Swagger：
 
-- 网关：http://127.0.0.1:8080/swagger-ui.html（登录/登出是 RouterFunction，以 curl 为准）
-- 用户中心：http://127.0.0.1:8081/swagger-ui.html
-- 库存：http://127.0.0.1:8083/swagger-ui.html
-- 售后：http://127.0.0.1:8082/swagger-ui.html
+- gateway：http://127.0.0.1:8080/swagger-ui.html（登录为 RouterFunction，以 curl 为准）
+- portal：http://127.0.0.1:8081/swagger-ui.html
+- trade：http://127.0.0.1:8082/swagger-ui.html
 
-经网关访问业务接口时，Header 加 `Authorization: Bearer <token>`。
+经网关访问业务接口需：`Authorization: Bearer <token>`。本地直连 trade 时可用 Header `X-User-Id` / `X-Username` / `X-Role`（`yean.operator.allow-body=true` 时也可用 body 调试字段）。
 
-命令行示例：
+### 4. 命令行示例
 
 ```bash
+# 登录
 curl -X POST http://127.0.0.1:8080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"00000","password":"123456"}'
 
+# 用户列表（替换 token）
 curl http://127.0.0.1:8080/user/list \
-  -H 'Authorization: Bearer <上一步返回的 token>'
-
-curl http://127.0.0.1:8080/stock/1001 \
   -H 'Authorization: Bearer <token>'
 
+# 新增订单
+curl -X POST http://127.0.0.1:8080/order \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"skuId":1001,"skuName":"无线蓝牙耳机","num":1,"amount":199.00,"userId":5}'
+
+# CSV 批量导入（样例 config-file/samples/orders-sample.csv）
+curl -X POST http://127.0.0.1:8080/order/upload \
+  -H 'Authorization: Bearer <token>' \
+  -F 'file=@config-file/samples/orders-sample.csv'
+
+# 库存查询 / 扣减
+curl http://127.0.0.1:8080/stock/1001 -H 'Authorization: Bearer <token>'
 curl -X POST http://127.0.0.1:8080/stock/deduct \
   -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
-  -d '{"skuId":1001,"changeNum":1,"bizNo":"AS-DEMO-001"}'
+  -d '{"skuId":1001,"changeNum":1,"bizNo":"DEMO-001"}'
 
-# 本地直连售后（用户 id=5 申请 ORD20250920001）
+# 售后：用户申请（本地直连示例；经网关则用 USER 账号登录拿 token）
 curl -X POST http://127.0.0.1:8082/aftersale/apply \
   -H 'Content-Type: application/json' \
   -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'
 
-# 分页列表
 curl 'http://127.0.0.1:8082/aftersale/page?page=1&size=10&userId=5'
 
-# 商家审核 → 仓库发货 → 用户收货 → 退款（aftersaleNo 替换为申请返回值）
+# 商家审核 → 仓库发货 → 用户收货 → 退款（aftersaleNo 换成申请返回值）
 curl -X POST http://127.0.0.1:8082/aftersale/approve \
   -H 'Content-Type: application/json' \
   -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
 curl -X POST http://127.0.0.1:8082/aftersale/ship \
   -H 'Content-Type: application/json' \
-  -d '{"aftersaleNo":"AS...","logisticsInfo":{"company":"顺丰","trackingNo":"SF001"},"userId":3,"username":"仓库小张","role":"WAREHOUSE"}'
+  -d '{"aftersaleNo":"AS...","logisticsInfo":{"company":"顺丰","trackingNo":"SF001"},"userId":3,"username":"AAA极速发货","role":"WAREHOUSE"}'
 curl -X POST http://127.0.0.1:8082/aftersale/receive \
   -H 'Content-Type: application/json' \
   -d '{"aftersaleNo":"AS...","userId":5,"username":"精神状态良好","role":"USER"}'
@@ -191,22 +176,28 @@ curl -X POST http://127.0.0.1:8082/aftersale/refund \
   -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
 ```
 
-### 4. Docker（可选）
+订单 CSV 表头：
 
-当前 `docker-compose.yml` 只起 **RocketMQ、Nacos**，给后面的库存/售后用。本地开发 portal + gateway **可以不启 Docker**。
+```text
+orderNo,userId,merchantId,skuId,skuName,num,amount,status,payStatus
+```
 
-需要较新的 Docker Desktop（macOS 13 装不了最新版，可用 4.48.0 或本机 Redis/MySQL 替代）。
+`orderNo` / `merchantId` / `status` / `payStatus` 可空（空 `orderNo` 自动生成；默认商家 2、状态待发货、已支付）。
+
+### 5. Docker（可选）
+
+`docker-compose.yml` 目前只起 **Nacos、RocketMQ**。本地跑 portal + gateway + trade **不必**起 Docker，但 **Redis / MySQL 必须本机可用**。
 
 ```bash
 docker compose up -d
-```
+# Nacos http://127.0.0.1:8848/nacos  （nacos / nacos）
+# RocketMQ NameServer :9876
 
-- Nacos：http://127.0.0.1:8848/nacos （`nacos` / `nacos`）
-- RocketMQ NameServer：`9876`
-
-停掉：
-
-```bash
 docker compose down
 ```
 
+## 说明与待办
+
+- 售后本地消息表已写入，**尚未对接 RocketMQ 投递**。
+- 售后流程与库存扣减 **尚未业务联动**（库存接口可独立调用）。
+- 设计调整与排错记录见 [`problem.md`](problem.md)。

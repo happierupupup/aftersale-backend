@@ -1,8 +1,8 @@
 USE aftersale_order;
 
 -- ---------------------------------------------------------------------------
--- 模拟订单库（独立库，非独立订单微服务）
--- aftersale-service 双数据源读取；演示订单挂在用户 id=5、商家 id=2
+-- 模拟订单库（trade-service / order 域）
+-- 演示订单挂在用户 id=5、商家 id=2
 -- 订单状态 status：1待发货 2已发货 3已完成 4已关闭
 -- 支付状态 pay_status：0未支付 1已支付
 -- ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ CREATE TABLE order_info (
     KEY idx_merchant_id (merchant_id),
     KEY idx_sku_id (sku_id),
     KEY idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表（模拟，独立库）';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表（模拟）';
 
 INSERT INTO order_info (order_no, user_id, merchant_id, sku_id, sku_name, num, amount, status, pay_status) VALUES
 ('ORD20250920001', 5, 2, 1001, '无线蓝牙耳机', 1, 199.00, 3, 1),

@@ -1,0 +1,4 @@
+orderNo,userId,merchantId,skuId,skuName,num,amount,status,payStatus
+,5,2,1001,无线蓝牙耳机,1,199.00,1,1
+,5,2,1002,机械键盘,2,798.00,2,1
+ORD20260924999,5,2,1003,USB-C 扩展坞,1,129.00,1,1

@@ -1,7 +1,8 @@
 USE aftersale_core;
 
 -- ---------------------------------------------------------------------------
--- aftersale-service 售后核心库（不含模拟订单；订单见 05-order.sql / aftersale_order）
+-- aftersale 核心库（trade-service / ticket 域；订单见 05-order.sql / aftersale_order 库）
+-- 售后单表：aftersale_ticket（Java 域对象 Ticket）
 -- 售后类型 type：1退货 2换货 3仅退款
 -- 售后状态 status：0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回
 -- 主链路：申请→待审核→(通过)待仓库发货→待用户收货→待退款→已办结；仅退款审核后直达待退款
@@ -11,10 +12,10 @@ USE aftersale_core;
 DROP TABLE IF EXISTS notification;
 DROP TABLE IF EXISTS local_message;
 DROP TABLE IF EXISTS aftersale_oper_log;
-DROP TABLE IF EXISTS aftersale_order;
-DROP TABLE IF EXISTS order_info;
+DROP TABLE IF EXISTS aftersale_ticket;
+DROP TABLE IF EXISTS aftersale_order; -- 兼容旧表名
 
-CREATE TABLE aftersale_order (
+CREATE TABLE aftersale_ticket (
     id                   BIGINT         NOT NULL AUTO_INCREMENT COMMENT '主键',
     aftersale_no         VARCHAR(32)    NOT NULL COMMENT '售后单号',
     order_no             VARCHAR(64)    NOT NULL COMMENT '关联订单号',

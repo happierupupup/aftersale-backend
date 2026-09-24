@@ -97,8 +97,11 @@ public class OperateLogAspect implements GlobalFilter, Ordered {
         if (path.startsWith("/stock") || path.startsWith("/sku")) {
             return "stock";
         }
-        if (path.startsWith("/aftersale") || path.startsWith("/order")) {
+        if (path.startsWith("/aftersale")) {
             return "aftersale";
+        }
+        if (path.startsWith("/order")) {
+            return "order";
         }
         if (path.startsWith("/api/auth")) {
             return "auth";

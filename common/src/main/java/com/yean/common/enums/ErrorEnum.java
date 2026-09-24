@@ -43,6 +43,9 @@ public enum ErrorEnum {
     ORDER_UNPAID(3004, "订单未支付"),
     AFTERSALE_NUM_INVALID(3005, "售后数量超过购买数量"),
     AFTERSALE_TYPE_INVALID(3006, "非法售后类型"),
+    ORDER_EXISTS(3007, "订单号已存在"),
+    ORDER_IMPORT_EMPTY(3008, "导入文件为空或无有效数据"),
+    ORDER_IMPORT_FORMAT(3009, "导入文件格式错误: %s"),
     AFTERSALE_NOT_FOUND(3101, "售后单不存在"),
     AFTERSALE_STATUS_NOT_ALLOW(3102, "当前状态不允许该操作"),
     AFTERSALE_NO_PERMISSION(3103, "无权操作该售后单");

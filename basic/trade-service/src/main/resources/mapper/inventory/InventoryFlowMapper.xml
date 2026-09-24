@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.yean.trade.inventory.mapper.InventoryFlowMapper">
+
+    <resultMap id="InventoryFlowResultMap" type="com.yean.trade.inventory.dto.InventoryFlow">
+        <id column="id" property="id"/>
+        <result column="flow_no" property="flowNo"/>
+        <result column="sku_id" property="skuId"/>
+        <result column="change_num" property="changeNum"/>
+        <result column="type" property="type"/>
+        <result column="biz_no" property="bizNo"/>
+        <result column="status" property="status"/>
+        <result column="operator" property="operator"/>
+        <result column="remark" property="remark"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="InventoryFlowColumns">
+        id, flow_no, sku_id, change_num, type, biz_no, status, operator, remark, create_time
+    </sql>
+
+    <select id="selectByBizNoAndType" resultMap="InventoryFlowResultMap">
+        SELECT <include refid="InventoryFlowColumns"/>
+        FROM stock_flow
+        WHERE biz_no = #{bizNo}
+          AND type = #{type}
+    </select>
+
+    <select id="selectFlowList" resultMap="InventoryFlowResultMap">
+        SELECT <include refid="InventoryFlowColumns"/>
+        FROM stock_flow
+        <where>
+            <if test="q.skuId != null">
+                AND sku_id = #{q.skuId}
+            </if>
+            <if test="q.bizNo != null and q.bizNo != ''">
+                AND biz_no = #{q.bizNo}
+            </if>
+            <if test="q.type != null and q.type != ''">
+                AND type = #{q.type}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+</mapper>

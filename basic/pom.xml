@@ -13,10 +13,9 @@
     <artifactId>basic</artifactId>
     <packaging>pom</packaging>
     <name>basic</name>
-    <description>业务基础域：库存 + 售后</description>
+    <description>业务基础域：trade-service（订单 + 售后 + 库存）</description>
 
     <modules>
-        <module>stock-service</module>
-        <module>aftersale-service</module>
+        <module>trade-service</module>
     </modules>
 </project>
