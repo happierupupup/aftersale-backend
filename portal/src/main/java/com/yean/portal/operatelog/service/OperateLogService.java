@@ -1,6 +1,6 @@
 package com.yean.portal.operatelog.service;
 
-import com.yean.common.operatelog.OperateLogCreateDTO;
+import com.yean.common.dto.operatelog.OperateLogCreateDTO;
 
 public interface OperateLogService {
 

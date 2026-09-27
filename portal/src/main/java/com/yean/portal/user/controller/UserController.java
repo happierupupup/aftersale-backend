@@ -1,6 +1,6 @@
 package com.yean.portal.user.controller;
 
-import com.yean.common.operatelog.OperateLog;
+import com.yean.common.rpc.OperateLog;
 import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import com.yean.portal.user.dto.AuthenticateDTO;

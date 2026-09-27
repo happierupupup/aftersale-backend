@@ -18,3 +18,7 @@ spring:
           uri: lb://trade-service
           predicates:
             - Path=/order/**,/aftersale/**,/stock/**,/sku/**
+        - id: process-service
+          uri: lb://process-service
+          predicates:
+            - Path=/process/**

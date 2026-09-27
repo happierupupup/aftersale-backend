@@ -5,7 +5,7 @@ import com.yean.portal.dept.dto.DeptQueryDTO;
 import com.yean.portal.dept.dto.DeptUpdateDTO;
 import com.yean.portal.dept.dto.DeptVO;
 import com.yean.portal.dept.service.DeptService;
-import com.yean.common.operatelog.OperateLog;
+import com.yean.common.rpc.OperateLog;
 import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import io.swagger.v3.oas.annotations.Operation;

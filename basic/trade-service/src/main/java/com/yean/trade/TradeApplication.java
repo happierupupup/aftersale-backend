@@ -1,6 +1,7 @@
 package com.yean.trade;
 
-import com.yean.common.operatelog.OperateLogFeignClient;
+import com.yean.common.rpc.OperateLogFeignClient;
+import com.yean.common.rpc.ProcessFeignClient;
 import com.yean.trade.config.SkuCacheProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,9 +10,9 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
- * 交易业务：order / ticket（售后）/ sku / inventory（库存）。
+ * 交易业务：order / ticket（售后）/ sku / inventory（库存）。流程经 ProcessFeignClient → process-service。
  */
-@EnableFeignClients(clients = OperateLogFeignClient.class)
+@EnableFeignClients(clients = {OperateLogFeignClient.class, ProcessFeignClient.class})
 @EnableConfigurationProperties(SkuCacheProperties.class)
 @EnableDiscoveryClient
 @SpringBootApplication

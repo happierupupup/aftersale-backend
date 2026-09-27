@@ -1,7 +1,7 @@
 package com.yean.portal.operatelog.controller;
 
-import com.yean.common.operatelog.OperateLog;
-import com.yean.common.operatelog.OperateLogCreateDTO;
+import com.yean.common.rpc.OperateLog;
+import com.yean.common.dto.operatelog.OperateLogCreateDTO;
 import com.yean.common.result.R;
 import com.yean.portal.operatelog.service.OperateLogService;
 import io.swagger.v3.oas.annotations.Operation;

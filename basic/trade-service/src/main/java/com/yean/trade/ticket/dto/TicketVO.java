@@ -54,6 +54,9 @@ public class TicketVO {
     @Schema(description = "退款明细")
     private RefundDetail refundDetail;
 
+    @Schema(description = "Activiti 流程实例 ID")
+    private String processInstanceId;
+
     @Schema(description = "创建时间")
     private LocalDateTime createTime;
 

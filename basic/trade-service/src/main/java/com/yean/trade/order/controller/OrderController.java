@@ -1,9 +1,9 @@
 package com.yean.trade.order.controller;
 
-import com.yean.common.operator.Operator;
-import com.yean.common.operator.OperatorResolver;
-import com.yean.common.operatelog.OperateLog;
-import com.yean.common.order.OrderVO;
+import com.yean.common.dto.Operator;
+import com.yean.common.config.OperatorResolver;
+import com.yean.common.rpc.OperateLog;
+import com.yean.trade.order.dto.OrderVO;
 import com.yean.common.result.PageQuery;
 import com.yean.common.result.PageResult;
 import com.yean.common.result.R;

@@ -1,6 +1,6 @@
 package com.yean.portal.operatelog.service.impl;
 
-import com.yean.common.operatelog.OperateLogCreateDTO;
+import com.yean.common.dto.operatelog.OperateLogCreateDTO;
 import com.yean.portal.operatelog.dto.SysOperateLog;
 import com.yean.portal.operatelog.mapper.SysOperateLogMapper;
 import com.yean.portal.operatelog.service.OperateLogService;

@@ -1,8 +1,8 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 com.yean.common.exception.GlobalExceptionHandler,\
-com.yean.common.web.EmptyStringToNullAdvice,\
-com.yean.common.lock.RedisBizLockAutoConfiguration,\
-com.yean.common.tx.TxAutoConfiguration,\
-com.yean.common.operator.OperatorAutoConfiguration,\
-com.yean.common.operatelog.OperateLogAspectAutoConfiguration,\
-com.yean.common.mybatis.MybatisPlusAutoConfiguration
+com.yean.common.config.EmptyStringToNullAdvice,\
+com.yean.common.config.RedisBizLockAutoConfiguration,\
+com.yean.common.config.TxAutoConfiguration,\
+com.yean.common.config.OperatorAutoConfiguration,\
+com.yean.common.config.OperateLogAspectAutoConfiguration,\
+com.yean.common.config.MybatisPlusAutoConfiguration

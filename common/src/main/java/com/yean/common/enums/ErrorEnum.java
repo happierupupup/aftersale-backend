@@ -48,7 +48,13 @@ public enum ErrorEnum {
     ORDER_IMPORT_FORMAT(3009, "导入文件格式错误: %s"),
     AFTERSALE_NOT_FOUND(3101, "售后单不存在"),
     AFTERSALE_STATUS_NOT_ALLOW(3102, "当前状态不允许该操作"),
-    AFTERSALE_NO_PERMISSION(3103, "无权操作该售后单");
+    AFTERSALE_NO_PERMISSION(3103, "无权操作该售后单"),
+
+    PROCESS_NOT_FOUND(3201, "流程实例不存在"),
+    PROCESS_ENDED(3202, "流程已结束，禁止修改"),
+    PROCESS_TASK_MISMATCH(3203, "当前节点与操作不匹配"),
+    PROCESS_ROLE_DENIED(3204, "当前角色无权处理该节点"),
+    PROCESS_ROLLBACK_DENIED(3205, "当前节点不允许回退");
 
     private final int code;
     private final String msg;

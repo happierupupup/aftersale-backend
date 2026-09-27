@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:activiti="http://activiti.org/bpmn"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
+             typeLanguage="http://www.w3.org/2001/XMLSchema"
+             expressionLanguage="http://www.w3.org/1999/XPath"
+             targetNamespace="http://yean.com/aftersale">
+  <process id="return" name="退货流程" isExecutable="true">
+    <startEvent id="start" name="开始"/>
+    <userTask id="merchantApprove" name="商家审核" activiti:candidateGroups="MERCHANT"/>
+    <userTask id="warehouseShip" name="仓库发货" activiti:candidateGroups="WAREHOUSE"/>
+    <userTask id="userReceive" name="用户收货" activiti:candidateGroups="USER"/>
+    <userTask id="merchantRefund" name="商家退款" activiti:candidateGroups="MERCHANT"/>
+    <endEvent id="end" name="结束"/>
+    <sequenceFlow sourceRef="start" targetRef="merchantApprove"/>
+    <sequenceFlow sourceRef="merchantApprove" targetRef="warehouseShip"/>
+    <sequenceFlow sourceRef="warehouseShip" targetRef="userReceive"/>
+    <sequenceFlow sourceRef="userReceive" targetRef="merchantRefund"/>
+    <sequenceFlow sourceRef="merchantRefund" targetRef="end"/>
+  </process>
+</definitions>

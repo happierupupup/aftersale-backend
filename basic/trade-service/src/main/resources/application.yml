@@ -58,6 +58,8 @@ yean:
     allow-body: true
   operatelog:
     portal-url: http://127.0.0.1:8081
+  process:
+    url: http://127.0.0.1:8083
 
 springdoc:
   swagger-ui:

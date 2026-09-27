@@ -12,3 +12,7 @@ spring:
           predicates:
             # 订单 / 售后 / SKU / 库存 同属 trade-service
             - Path=/order/**,/aftersale/**,/stock/**,/sku/**
+        - id: process-service
+          uri: http://127.0.0.1:8083
+          predicates:
+            - Path=/process/**

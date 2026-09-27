@@ -11,5 +11,7 @@ public enum TicketAction {
     /** 用户确认收货 */
     RECEIVE,
     /** 商家退款办结 */
-    REFUND
+    REFUND,
+    /** 流程回退上一节点 */
+    ROLLBACK
 }

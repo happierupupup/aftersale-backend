@@ -1,6 +1,6 @@
 package com.yean.portal;
 
-import com.yean.common.operatelog.OperateLogFeignClient;
+import com.yean.common.rpc.OperateLogFeignClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

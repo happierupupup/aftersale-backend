@@ -5,9 +5,9 @@ import com.yean.trade.ticket.dto.TicketApplyDTO;
 import com.yean.trade.ticket.dto.TicketQueryDTO;
 import com.yean.trade.ticket.dto.TicketVO;
 import com.yean.trade.ticket.service.TicketService;
-import com.yean.common.operator.Operator;
-import com.yean.common.operator.OperatorResolver;
-import com.yean.common.operatelog.OperateLog;
+import com.yean.common.dto.Operator;
+import com.yean.common.config.OperatorResolver;
+import com.yean.common.rpc.OperateLog;
 import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import io.swagger.v3.oas.annotations.Operation;
@@ -159,5 +159,20 @@ public class TicketController {
         Operator operator = operatorResolver.resolve(headerUserId, headerUsername, headerRole,
                 dto.getUserId(), dto.getUsername(), dto.getRole());
         return R.ok(ticketService.refund(dto, operator));
+    }
+
+    @OperateLog(module = "aftersale", action = "rollback")
+    @Operation(summary = "流程回退上一节点（当前节点角色或 ADMIN），同步售后状态")
+    @PostMapping("/rollback")
+    public R<TicketVO> rollback(@Valid @RequestBody TicketActionDTO dto,
+                                @Parameter(in = ParameterIn.HEADER, hidden = true)
+                                @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
+                                @Parameter(in = ParameterIn.HEADER, hidden = true)
+                                @RequestHeader(value = "X-Username", required = false) String headerUsername,
+                                @Parameter(in = ParameterIn.HEADER, hidden = true)
+                                @RequestHeader(value = "X-Role", required = false) String headerRole) {
+        Operator operator = operatorResolver.resolve(headerUserId, headerUsername, headerRole,
+                dto.getUserId(), dto.getUsername(), dto.getRole());
+        return R.ok(ticketService.rollback(dto, operator));
     }
 }

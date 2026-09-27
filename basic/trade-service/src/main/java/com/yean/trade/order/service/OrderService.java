@@ -1,7 +1,7 @@
 package com.yean.trade.order.service;
 
-import com.yean.common.operator.Operator;
-import com.yean.common.order.OrderVO;
+import com.yean.common.dto.Operator;
+import com.yean.trade.order.dto.OrderVO;
 import com.yean.common.result.PageResult;
 import com.yean.trade.order.dto.OrderBatchResultVO;
 import com.yean.trade.order.dto.OrderCreateDTO;

@@ -1,6 +1,6 @@
 package com.yean.gateway;
 
-import com.yean.common.operatelog.OperateLogFeignClient;
+import com.yean.common.rpc.OperateLogFeignClient;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;

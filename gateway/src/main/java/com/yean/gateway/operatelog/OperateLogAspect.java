@@ -1,7 +1,7 @@
 package com.yean.gateway.operatelog;
 
-import com.yean.common.operatelog.OperateLogCreateDTO;
-import com.yean.common.operatelog.OperateLogFeignClient;
+import com.yean.common.dto.operatelog.OperateLogCreateDTO;
+import com.yean.common.rpc.OperateLogFeignClient;
 import com.yean.gateway.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
