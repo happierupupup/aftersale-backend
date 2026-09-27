@@ -24,6 +24,8 @@ public class Ticket {
     private Integer status;
     private Long skuId;
     private String skuName;
+    /** 换货目标 SKU；仅 type=EXCHANGE 有值 */
+    private Long exchangeSkuId;
     private Integer num;
     private BigDecimal amount;
     private String reason;

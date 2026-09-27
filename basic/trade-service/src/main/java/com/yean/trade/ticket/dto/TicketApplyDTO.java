@@ -23,6 +23,9 @@ public class TicketApplyDTO {
     @Schema(description = "1退货 2换货 3仅退款", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
     private Integer type;
 
+    @Schema(description = "换货目标 SKU；type=2 必填，且须与原 skuId 不同", example = "1002")
+    private Long exchangeSkuId;
+
     @NotNull(message = "数量不能为空")
     @Min(value = 1, message = "数量必须大于 0")
     @Schema(description = "售后数量，不能超过购买数量", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)

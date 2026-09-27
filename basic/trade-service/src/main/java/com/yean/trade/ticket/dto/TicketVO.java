@@ -30,11 +30,14 @@ public class TicketVO {
     @Schema(description = "0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回")
     private Integer status;
 
-    @Schema(description = "SKU ID")
+    @Schema(description = "SKU ID（原订单商品）")
     private Long skuId;
 
     @Schema(description = "商品名称快照")
     private String skuName;
+
+    @Schema(description = "换货目标 SKU；仅换货单有值")
+    private Long exchangeSkuId;
 
     @Schema(description = "售后数量")
     private Integer num;

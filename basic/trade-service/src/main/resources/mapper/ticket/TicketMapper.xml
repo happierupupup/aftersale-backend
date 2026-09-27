@@ -13,6 +13,7 @@
         <result column="status" property="status"/>
         <result column="sku_id" property="skuId"/>
         <result column="sku_name" property="skuName"/>
+        <result column="exchange_sku_id" property="exchangeSkuId"/>
         <result column="num" property="num"/>
         <result column="amount" property="amount"/>
         <result column="reason" property="reason"/>
@@ -27,7 +28,7 @@
     </resultMap>
 
     <sql id="TicketColumns">
-        id, aftersale_no, order_no, user_id, merchant_id, type, status, sku_id, sku_name, num, amount,
+        id, aftersale_no, order_no, user_id, merchant_id, type, status, sku_id, sku_name, exchange_sku_id, num, amount,
         reason, logistics_info, refund_detail, active_flag, process_instance_id, create_time, update_time
     </sql>
 

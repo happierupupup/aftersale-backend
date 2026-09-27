@@ -28,6 +28,12 @@ public class InventoryChangeDTO {
     @Schema(description = "仅本地直连 8082 调试时填写。正式经网关不要填，操作人取 X-Username", example = "00000")
     private String username;
 
+    @Schema(description = "仅本地直连 8082 填写", example = "1")
+    private Long userId;
+
+    @Schema(description = "仅本地直连 8082 填写；须 WAREHOUSE 或 ADMIN", example = "WAREHOUSE")
+    private String role;
+
     @Schema(description = "备注")
     private String remark;
 }

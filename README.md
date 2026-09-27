@@ -15,8 +15,8 @@ aftersale-backend
 │   └── trade-service/   # 交易业务 :8082（订单 + 售后 + SKU/库存）
 ├── config-file/
 │   ├── sql/             # 建库建表
-│   ├── samples/         # 样例文件（如订单 CSV）
 │   └── rocketmq/        # Broker 配置
+├── docs/bench/          # 压测脚本与基线报告（见 baseline-guide.md）
 └── docker-compose.yml   # 可选：Nacos、RocketMQ
 ```
 
@@ -142,12 +142,12 @@ curl -X POST http://127.0.0.1:8080/order \
   -H 'Content-Type: application/json' \
   -d '{"skuId":1001,"skuName":"无线蓝牙耳机","num":1,"amount":199.00,"userId":5}'
 
-# CSV 批量导入（样例 config-file/samples/orders-sample.csv）
+# CSV 批量导入（orderNo 可空自动生成；压测样例见 docs/bench/orders_2000.csv）
 curl -X POST http://127.0.0.1:8080/order/upload \
   -H 'Authorization: Bearer <token>' \
-  -F 'file=@config-file/samples/orders-sample.csv'
+  -F 'file=@docs/bench/orders_2000.csv'
 
-# 库存查询 / 扣减
+# 库存查询 / 扣减（写接口须 WAREHOUSE 或 ADMIN）
 curl http://127.0.0.1:8080/stock/1001 -H 'Authorization: Bearer <token>'
 curl -X POST http://127.0.0.1:8080/stock/deduct \
   -H 'Authorization: Bearer <token>' \
@@ -155,6 +155,7 @@ curl -X POST http://127.0.0.1:8080/stock/deduct \
   -d '{"skuId":1001,"changeNum":1,"bizNo":"DEMO-001"}'
 
 # 售后：用户申请（本地直连示例；经网关则用 USER 账号登录拿 token）
+# type=1 退货 / 3 仅退款；type=2 换货须带 exchangeSkuId
 curl -X POST http://127.0.0.1:8082/aftersale/apply \
   -H 'Content-Type: application/json' \
   -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'

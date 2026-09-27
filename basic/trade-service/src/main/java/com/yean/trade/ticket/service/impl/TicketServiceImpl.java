@@ -2,8 +2,11 @@ package com.yean.trade.ticket.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.yean.trade.inventory.dto.InventoryChangeDTO;
+import com.yean.trade.inventory.service.InventoryService;
 import com.yean.trade.message.service.LocalMessageService;
 import com.yean.trade.message.service.impl.LocalMessageServiceImpl;
+import com.yean.trade.sku.service.SkuService;
 import com.yean.trade.ticket.dto.LogisticsInfo;
 import com.yean.trade.ticket.dto.RefundDetail;
 import com.yean.trade.ticket.dto.Ticket;
@@ -50,6 +53,8 @@ public class TicketServiceImpl implements TicketService {
     private static final String LOCK_PREFIX = "lock:aftersale:";
 
     private final OrderService orderService;
+    private final InventoryService inventoryService;
+    private final SkuService skuService;
     private final TicketMapper ticketMapper;
     private final TicketOperLogMapper ticketOperLogMapper;
     private final LocalMessageService localMessageService;
@@ -88,6 +93,7 @@ public class TicketServiceImpl implements TicketService {
                 row.setStatus(TicketStatus.PENDING.getCode());
                 row.setSkuId(order.getSkuId());
                 row.setSkuName(order.getSkuName());
+                row.setExchangeSkuId(dto.getExchangeSkuId());
                 row.setNum(dto.getNum());
                 row.setAmount(calcAmount(order, dto.getNum()));
                 row.setReason(dto.getReason());
@@ -206,6 +212,8 @@ public class TicketServiceImpl implements TicketService {
         int before = row.getStatus() == null ? -1 : row.getStatus();
         int nextStatus = nextStatusFixed != null ? nextStatusFixed : resolveApproveNext(row);
         assertTransition(row, operator, action, before);
+        // 库存联动先于改状态：失败则外层事务回滚，售后单不半成功；幂等键=aftersaleNo+type
+        syncInventory(row, action, operator);
         LogisticsInfo logistics = action == TicketAction.SHIP ? dto.getLogisticsInfo() : null;
         RefundDetail refundDetail = null;
         if (action == TicketAction.REFUND) {
@@ -322,6 +330,62 @@ public class TicketServiceImpl implements TicketService {
         if (dto.getNum() > order.getNum()) {
             throw new BizException(ErrorEnum.AFTERSALE_NUM_INVALID);
         }
+        if (type == TicketType.EXCHANGE) {
+            if (dto.getExchangeSkuId() == null) {
+                throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "换货须指定 exchangeSkuId");
+            }
+            if (dto.getExchangeSkuId().equals(dto.getSkuId())) {
+                throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "换货目标 SKU 不能与原商品相同");
+            }
+            skuService.getBySkuId(dto.getExchangeSkuId());
+        } else if (dto.getExchangeSkuId() != null) {
+            throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "非换货单不要传 exchangeSkuId");
+        }
+    }
+
+    /**
+     * 退货收货 → 旧品回仓；换货发货 → 扣新 SKU；换货收货 → 旧品回仓；仅退款不动库存。
+     * 库存库与售后库分库，库存侧自有事务 + bizNo 幂等；重试安全。
+     */
+    private void syncInventory(Ticket row, TicketAction action, Operator operator) {
+        TicketType type = TicketType.require(row.getType());
+        if (type == TicketType.REFUND_ONLY) {
+            return;
+        }
+        String op = inventoryOperator(operator);
+        if (action == TicketAction.RECEIVE && type == TicketType.RETURN) {
+            inventoryService.rollback(changeDto(row.getSkuId(), row.getNum(), row.getAftersaleNo(),
+                    "RETURN_RECEIVE"), op);
+            return;
+        }
+        if (action == TicketAction.SHIP && type == TicketType.EXCHANGE) {
+            if (row.getExchangeSkuId() == null) {
+                throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "换货单缺少 exchangeSkuId");
+            }
+            inventoryService.deduct(changeDto(row.getExchangeSkuId(), row.getNum(), row.getAftersaleNo(),
+                    "EXCHANGE_SHIP"), op);
+            return;
+        }
+        if (action == TicketAction.RECEIVE && type == TicketType.EXCHANGE) {
+            inventoryService.rollback(changeDto(row.getSkuId(), row.getNum(), row.getAftersaleNo(),
+                    "EXCHANGE_RECEIVE"), op);
+        }
+    }
+
+    private static InventoryChangeDTO changeDto(Long skuId, Integer num, String bizNo, String remark) {
+        InventoryChangeDTO dto = new InventoryChangeDTO();
+        dto.setSkuId(skuId);
+        dto.setChangeNum(num);
+        dto.setBizNo(bizNo);
+        dto.setRemark(remark);
+        return dto;
+    }
+
+    private static String inventoryOperator(Operator operator) {
+        if (StringUtils.hasText(operator.getUsername())) {
+            return operator.getUsername();
+        }
+        return operator.getUserId() == null ? "system" : String.valueOf(operator.getUserId());
     }
 
     private void applyRoleFilter(TicketQueryDTO cond, Operator operator) {
@@ -448,6 +512,7 @@ public class TicketServiceImpl implements TicketService {
         vo.setStatus(row.getStatus());
         vo.setSkuId(row.getSkuId());
         vo.setSkuName(row.getSkuName());
+        vo.setExchangeSkuId(row.getExchangeSkuId());
         vo.setNum(row.getNum());
         vo.setAmount(row.getAmount());
         vo.setReason(row.getReason());
