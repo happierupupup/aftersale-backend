@@ -29,12 +29,26 @@ echo "JAVA_HOME=$JAVA_HOME"
 echo "RMQ_HOME=$RMQ_HOME"
 echo "启动 NameServer :9876 ..."
 nohup sh "$RMQ_HOME/bin/mqnamesrv" >"$RMQ_HOME/logs/namesrv.log" 2>&1 &
-sleep 3
-echo "启动 Broker ..."
+
+wait_port() {
+  local port=$1
+  local name=$2
+  local i=0
+  while (( i < 60 )); do
+    if nc -z 127.0.0.1 "$port" >/dev/null 2>&1; then
+      echo "  $name OK :$port"
+      return 0
+    fi
+    sleep 1
+    i=$((i + 1))
+  done
+  echo "  $name 未就绪，看 $RMQ_HOME/logs/"
+  return 1
+}
+
+wait_port 9876 "NameServer" || true
+echo "启动 Broker（冷启动可能较慢）..."
 nohup sh "$RMQ_HOME/bin/mqbroker" -n 127.0.0.1:9876 -c "$CONF" autoCreateTopicEnable=true \
   >"$RMQ_HOME/logs/broker.log" 2>&1 &
-sleep 5
-echo "检查端口："
-nc -z 127.0.0.1 9876 && echo "  NameServer OK :9876" || echo "  NameServer 未就绪，看 $RMQ_HOME/logs/namesrv.log"
-nc -z 127.0.0.1 10911 && echo "  Broker OK :10911" || echo "  Broker 未就绪，看 $RMQ_HOME/logs/broker.log"
+wait_port 10911 "Broker" || echo "  详见 $RMQ_HOME/logs/broker.log"
 echo "trade 配置 rocketmq.name-server=127.0.0.1:9876"

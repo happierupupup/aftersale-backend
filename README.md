@@ -2,31 +2,32 @@
 
 Spring Cloud 电商**售后退换货** Demo：网关鉴权 + 用户中心 + 交易业务（订单 / 售后 / SKU 库存）+ Activiti 流程引擎。
 
-技术栈：Spring Boot 2.7、Spring Cloud Gateway、OpenFeign、MyBatis-Plus、Redisson、Activiti 6、MySQL 8、Redis。
+技术栈：Spring Boot 2.7、Spring Cloud Gateway、OpenFeign、MyBatis-Plus、Redisson、Activiti 6、MySQL 8、Redis、RocketMQ 4.9（通知）。
 
 ## 模块与端口
 
 ```
 aftersale-backend
-├── common/              # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、ProcessFeignClient
+├── common/              # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、Feign
 ├── portal/              # 用户中心 :8081（sys_* 表）
 ├── gateway/             # 网关鉴权 :8080（不连业务库）
 ├── basic/
-│   ├── trade-service/   # 交易业务 :8082（订单 + 售后 + SKU/库存；Feign 调流程）
+│   ├── trade-service/   # 交易业务 :8082（订单 + 售后 + SKU/库存；Feign 调流程；发/收售后通知）
 │   └── process-service/ # Activiti 流程引擎 :8083（process_* / act_*）
 ├── config-file/
 │   ├── sql/             # 建库建表（单库 aftersale）
-│   └── rocketmq/        # Broker 配置
-├── docs/bench/          # 压测脚本与基线报告（见 baseline-guide.md）
-└── docker-compose.yml   # 可选：Nacos、RocketMQ
+│   └── rocketmq/        # Broker 配置 + 本机启停脚本 start-local.sh / stop-local.sh
+├── docs/                # 本地手册（默认 gitignore）：test.md / problem.md 等
+└── docker-compose.yml   # 可选：Nacos、RocketMQ（本机也可用脚本起 MQ）
 ```
 
 | 服务 | 端口 | 职责 |
 |------|------|------|
 | gateway | 8080 | JWT 登录/续期/登出、路由、注入 `X-User-*` |
 | portal | 8081 | 用户 / 部门 / 通知 / 操作日志落库 |
-| trade-service | 8082 | 订单、售后单、SKU 档案、库存扣减回退 |
+| trade-service | 8082 | 订单、售后单、SKU 档案、库存扣减回退、售后 MQ 通知 |
 | process-service | 8083 | Activiti：start/complete/reject/withdraw/rollback/history |
+| RocketMQ NameServer | 9876 | 售后通知 Topic（测站内信时需要） |
 
 `trade-service` 包结构（`com.yean.trade`）：
 
@@ -36,7 +37,8 @@ aftersale-backend
 | `ticket` | 售后单 + `strategy`/`rpc`（Feign 流程） | `aftersale_ticket` 等 |
 | `sku` | SKU 档案 | `stock_sku` |
 | `inventory` | 库存计数 / 流水 | `stock_count` / `stock_flow` |
-| `message` | 本地消息 outbox（暂不发 MQ） | `local_message` |
+| `notify` | 售后通知：直发 MQ → Consumer → portal 站内信（阶段 8a） | — |
+| `message` | 本地消息 outbox（表已有；**8b** 再接 Sender） | `local_message` |
 
 `common`：`dto` / `rpc` / `config` + `enums` / `exception` / `result` / `lock`。  
 全项目共用 MySQL 库 **`aftersale`**，用表名区分域；portal / trade / process 均连同一库。
@@ -57,7 +59,7 @@ aftersale-backend
 
 角色：审核/退款=`MERCHANT`（且商家归属）、发货=`WAREHOUSE`、收货=申请人 `USER`。`DONE`/`REJECTED`/`CANCELED` 后再改会被拒绝。
 
-通知：每次操作写 `local_message`（NEW），**尚未 MQ 投递到 portal 站内信**（阶段 8）；演示时靠列表/接口轮询即可。
+通知（阶段 **8a**）：节点流转主链路成功后直发 RocketMQ Topic `aftersale_notify` → trade Consumer → portal `/notify/send` 写 `sys_notify`。发送失败只打日志、不回滚业务（**无 outbox 补投**；8b 再用 `local_message`）。测通知步骤见本地 `docs/test.md` §7。
 
 售后状态码：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（`5已驳回` / `6已撤回`）。
 
@@ -69,6 +71,7 @@ aftersale-backend
 - **trade / ticket**：Feign 驱动 Activiti；`TicketNodeStrategyFactory.getStrategy(action)` 同步状态/库存
 - **process-service**：BPMN、候选组、终态守卫、`process_oper_log`、回退上一节点
 - **trade / sku + inventory**：SKU CRUD；扣减/回退（幂等 + 锁 + CAS）；写接口限 WAREHOUSE/ADMIN
+- **trade / notify**：售后事件 → RocketMQ → 站内信（8a）；outbox 待 8b
 - **统一返回**：`{code, msg, data}`，分页 `PageResult`，错误码 `ErrorEnum`
 
 ## 接口前缀（经 gateway，也可直连服务端口）
@@ -87,6 +90,7 @@ aftersale-backend
 
 - JDK 17、Maven 3.x（可用 IDEA 自带）
 - MySQL 8、Redis（trade / portal / gateway 依赖 Redis；process-service 主要依赖 MySQL）
+- 测站内信时：本机 RocketMQ 4.9.x（**二进制包** `rocketmq-all-4.9.7-bin-release`）或 Docker Compose
 
 按本机账号密码改各服务 `application.yml`。
 
@@ -122,7 +126,7 @@ mysql -uroot -p < config-file/sql/06-process.sql
 | `AAA极速发货` | WAREHOUSE | 3 |
 | `精神状态良好` | USER | 5 |
 
-演示订单挂在用户 id=5、商家 id=2（见 `05-order.sql`）。表结构变更后若本地已有旧库，需重导或按 `problem.md` 迁移（例如售后表曾更名为 `aftersale_ticket`）。
+演示订单挂在用户 id=5、商家 id=2（见 `05-order.sql`）。表结构变更后若本地已有旧库，需重导或按 `docs/problem.md` / 历史迁移说明处理。
 
 ### 2. Redis
 
@@ -131,16 +135,43 @@ redis-server
 redis-cli ping    # PONG
 ```
 
-用途：gateway 登出黑名单、业务锁、SKU 缓存、单号序号、售后幂等键等。未启动时 trade-service 会因 Redisson 连不上而失败。
+用途：gateway 登出黑名单、业务锁、SKU 缓存、单号序号、售后幂等键、通知消费幂等键等。未启动时 trade-service 会因 Redisson 连不上而失败。
 
-### 3. IDEA 启动
+### 3. RocketMQ（测售后站内信时需要）
+
+推荐本机二进制（无需 Docker）。下载 **`rocketmq-all-4.9.7-bin-release.zip`**（须带 `bin-release`，不是源码树），解压到例如：
+
+```text
+~/rocketmq/rocketmq-4.9.7/
+  bin/
+  conf/
+  lib/
+```
+
+启停（脚本默认 `RMQ_HOME=$HOME/rocketmq/rocketmq-4.9.7`，JDK8 路径见脚本内 `JAVA_HOME`）：
+
+```bash
+chmod +x config-file/rocketmq/start-local.sh config-file/rocketmq/stop-local.sh
+./config-file/rocketmq/start-local.sh
+# NameServer :9876，Broker :10911（冷启动可能较慢，脚本会轮询等待）
+
+./config-file/rocketmq/stop-local.sh
+```
+
+trade 默认：`rocketmq.name-server=127.0.0.1:9876`。  
+**不测通知**时可不起 MQ：售后主链路仍可跑，发通知失败只打日志。
+
+也可用 Compose（需本机 Docker）：`docker compose up -d rocketmq-namesrv rocketmq-broker`。
+
+### 4. 启动 Java 服务（IDEA）
 
 1. 打开仓库根目录，JDK 17，Maven Reload。
-2. 启动顺序：
-   - `com.yean.portal.PortalApplication`
-   - `com.yean.process.ProcessApplication`（售后依赖流程 RPC）
-   - `com.yean.trade.TradeApplication`
-   - `com.yean.gateway.GatewayApplication`
+2. **建议启动顺序**：
+   1. （可选）RocketMQ — 见上一节  
+   2. `com.yean.portal.PortalApplication` → `:8081`  
+   3. `com.yean.process.ProcessApplication` → `:8083`（售后依赖流程 RPC）  
+   4. `com.yean.trade.TradeApplication` → `:8082`（若测通知，须已起 MQ）  
+   5. `com.yean.gateway.GatewayApplication` → `:8080`
 3. 默认 profile `local`（不注册 Nacos）。要用 Nacos：`--spring.profiles.active=nacos`，并先起 Nacos。
 
 Swagger：
@@ -152,7 +183,9 @@ Swagger：
 
 经网关访问业务接口需：`Authorization: Bearer <token>`。本地直连 trade 时可用 Header `X-User-Id` / `X-Username` / `X-Role`（`yean.operator.allow-body=true` 时也可用 body 调试字段）。
 
-### 4. 命令行示例
+更完整的联调步骤（登录、库存、售后闭环、通知 A/B 测）见本地 **`docs/test.md`**。
+
+### 5. 命令行示例
 
 ```bash
 # 登录
@@ -209,6 +242,9 @@ curl -X POST http://127.0.0.1:8082/aftersale/receive \
 curl -X POST http://127.0.0.1:8082/aftersale/refund \
   -H 'Content-Type: application/json' \
   -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
+
+# 站内信（MQ 正常且已 apply 后，商家 userId=2 应有待审通知）
+curl 'http://127.0.0.1:8081/notify/list?userId=2&page=1&size=5'
 ```
 
 订单 CSV 表头：
@@ -219,12 +255,14 @@ orderNo,userId,merchantId,skuId,skuName,num,amount,status,payStatus
 
 `orderNo` / `merchantId` / `status` / `payStatus` 可空（空 `orderNo` 自动生成；默认商家 2、状态待发货、已支付）。
 
-### 5. Docker（可选）
+### 6. Docker / Nacos（可选）
 
-`docker-compose.yml` 目前只起 **Nacos、RocketMQ**。本地跑 portal + gateway + trade **不必**起 Docker，但 **Redis / MySQL 必须本机可用**。
+日常开发：**MySQL + Redis 本机必启**；RocketMQ 优先用 §3 本机脚本。  
+`docker-compose.yml` 可起 **Nacos、RocketMQ**（需已装 Docker）：
 
 ```bash
-docker compose up -d
+docker compose up -d nacos
+# 或一并起 MQ：docker compose up -d
 # Nacos http://127.0.0.1:8848/nacos  （nacos / nacos）
 # RocketMQ NameServer :9876
 
@@ -234,5 +272,5 @@ docker compose down
 ## 说明与待办
 
 - 流程推进 + 退货/换货库存联动 **已落地**；须先起 `process-service` 再起 `trade`。
-- `local_message` 已写入，**尚未对接 RocketMQ → portal 站内信**（阶段 8）。
-- 设计调整与排错记录见 [`problem.md`](problem.md)；实现计划见 [`plan.md`](plan.md)。
+- 售后通知 **8a 已落地**（直发 MQ → 站内信）；**8b outbox**（`local_message` + Sender 补投）未做。
+- 联调步骤：本地 `docs/test.md`；排错 / 设计记录：本地 `docs/problem.md`；实现计划：[`plan.md`](plan.md)。
