@@ -7,6 +7,7 @@
         <id column="id" property="id"/>
         <result column="sku_id" property="skuId"/>
         <result column="sku_name" property="skuName"/>
+        <result column="merchant_id" property="merchantId"/>
         <result column="warn_threshold" property="warnThreshold"/>
         <result column="update_by" property="updateBy"/>
         <result column="create_time" property="createTime"/>
@@ -17,6 +18,7 @@
         <id column="id" property="id"/>
         <result column="sku_id" property="skuId"/>
         <result column="sku_name" property="skuName"/>
+        <result column="merchant_id" property="merchantId"/>
         <result column="stock_num" property="stockNum"/>
         <result column="version" property="version"/>
         <result column="warn_threshold" property="warnThreshold"/>
@@ -25,20 +27,20 @@
     </resultMap>
 
     <select id="selectBySkuId" resultMap="SkuResultMap">
-        SELECT id, sku_id, sku_name, warn_threshold, update_by, create_time, update_time
+        SELECT id, sku_id, sku_name, merchant_id, warn_threshold, update_by, create_time, update_time
         FROM stock_sku
         WHERE sku_id = #{skuId}
     </select>
 
     <select id="selectDetailBySkuId" resultMap="SkuDetailResultMap">
-        SELECT s.id, s.sku_id, s.sku_name, c.stock_num, c.version, s.warn_threshold, s.update_by, s.update_time
+        SELECT s.id, s.sku_id, s.sku_name, s.merchant_id, c.stock_num, c.version, s.warn_threshold, s.update_by, s.update_time
         FROM stock_sku s
         LEFT JOIN stock_count c ON s.sku_id = c.sku_id
         WHERE s.sku_id = #{skuId}
     </select>
 
     <select id="selectDetailList" resultMap="SkuDetailResultMap">
-        SELECT s.id, s.sku_id, s.sku_name, c.stock_num, c.version, s.warn_threshold, s.update_by, s.update_time
+        SELECT s.id, s.sku_id, s.sku_name, s.merchant_id, c.stock_num, c.version, s.warn_threshold, s.update_by, s.update_time
         FROM stock_sku s
         LEFT JOIN stock_count c ON s.sku_id = c.sku_id
         <where>

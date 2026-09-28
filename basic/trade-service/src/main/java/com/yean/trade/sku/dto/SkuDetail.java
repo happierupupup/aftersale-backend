@@ -13,6 +13,7 @@ public class SkuDetail {
     private Long id;
     private Long skuId;
     private String skuName;
+    private Long merchantId;
     private Integer stockNum;
     private Integer version;
     private Integer warnThreshold;

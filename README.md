@@ -59,9 +59,9 @@ aftersale-backend
 
 角色：审核/退款=`MERCHANT`（且商家归属）、发货=`WAREHOUSE`、收货=申请人 `USER`。`DONE`/`REJECTED`/`CANCELED` 后再改会被拒绝。
 
-通知（阶段 **8a**）：节点流转主链路成功后直发 RocketMQ Topic `aftersale_notify` → trade Consumer → portal `/notify/send` 写 `sys_notify`。发送失败只打日志、不回滚业务（**无 outbox 补投**；8b 再用 `local_message`）。测通知步骤见本地 `docs/test.md` §7。
+通知（阶段 **8a**）：节点流转主链路成功后直发 RocketMQ Topic `aftersale_notify` → trade Consumer → portal `/notify/send` 写 `sys_notify`。申请时 **`merchant_id` 取自 `stock_sku`（按商品查商家）**，待审/撤销通知推送给该商家。发送失败只打日志、不回滚业务（**无 outbox 补投**；8b 再用 `local_message`）。测通知步骤见本地 `docs/test.md` §7。
 
-售后状态码：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（`5已驳回` / `6已撤回`）。
+售后状态码：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（`5已驳回` / `6已撤回`）。用户可在 **待审核或待仓库发货** 调用 `POST /aftersale/withdraw` 撤销（流程实例删除为 CANCELED）。
 
 ## 能力概览
 
@@ -102,6 +102,7 @@ aftersale-backend
 mysql -uroot -p < config-file/sql/01-init.sql
 mysql -uroot -p < config-file/sql/02-user.sql
 mysql -uroot -p < config-file/sql/03-stock.sql
+# 已有库补 SKU 商家列：mysql -uroot -p < config-file/sql/03b-stock-sku-merchant.sql
 mysql -uroot -p < config-file/sql/04-aftersale.sql
 mysql -uroot -p < config-file/sql/05-order.sql
 mysql -uroot -p < config-file/sql/06-process.sql
@@ -112,7 +113,8 @@ mysql -uroot -p < config-file/sql/06-process.sql
 |------|------|
 | `01` | 建库：`aftersale`（唯一库） |
 | `02` | 用户中心 `sys_*` + 演示账号 |
-| `03` | SKU 档案 + 库存计数 / 流水 `stock_*` |
+| `03` | SKU 档案 + 库存计数 / 流水 `stock_*`（含 `merchant_id`） |
+| `03b` | 已有库增量：`stock_sku.merchant_id` |
 | `04` | 售后单 `aftersale_ticket` + 操作日志 + outbox |
 | `05` | 模拟订单 `order_info` |
 | `06` | 流程投影 `process_biz` / `process_oper_log`（`act_*` 由引擎自动建） |

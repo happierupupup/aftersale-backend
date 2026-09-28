@@ -18,6 +18,9 @@ public class SkuVO {
     @Schema(description = "规格名称")
     private String skuName;
 
+    @Schema(description = "归属商家用户 ID")
+    private Long merchantId;
+
     @Schema(description = "可用库存")
     private Integer stockNum;
 

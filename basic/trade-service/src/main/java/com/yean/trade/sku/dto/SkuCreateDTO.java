@@ -20,6 +20,10 @@ public class SkuCreateDTO {
     @Schema(description = "规格名称", example = "演示商品-黑色", requiredMode = Schema.RequiredMode.REQUIRED)
     private String skuName;
 
+    @NotNull(message = "商家不能为空")
+    @Schema(description = "归属商家用户 ID（sys_user.id）", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
+    private Long merchantId;
+
     @NotNull(message = "初始库存不能为空")
     @Min(value = 0, message = "初始库存不能为负")
     @Schema(description = "初始可用库存", example = "100", requiredMode = Schema.RequiredMode.REQUIRED)

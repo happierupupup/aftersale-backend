@@ -15,12 +15,14 @@ CREATE TABLE stock_sku (
     id             BIGINT       NOT NULL AUTO_INCREMENT COMMENT '主键',
     sku_id         BIGINT       NOT NULL COMMENT 'SKU 业务标识（同一商品不同规格各一个）',
     sku_name       VARCHAR(128) NOT NULL COMMENT '规格名称',
+    merchant_id    BIGINT       NOT NULL DEFAULT 2 COMMENT '归属商家用户ID（sys_user.id，售后通知推送对象）',
     warn_threshold INT          NOT NULL DEFAULT 10 COMMENT '库存预警阈值',
     update_by      VARCHAR(64)           DEFAULT NULL COMMENT '档案最后维护人',
     create_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_sku_id (sku_id)
+    UNIQUE KEY uk_sku_id (sku_id),
+    KEY idx_merchant_id (merchant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='SKU档案';
 
 CREATE TABLE stock_count (
@@ -51,10 +53,10 @@ CREATE TABLE stock_flow (
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='库存流水';
 
-INSERT INTO stock_sku (sku_id, sku_name, warn_threshold) VALUES
-(1001, '无线蓝牙耳机', 20),
-(1002, '机械键盘',     10),
-(1003, 'USB-C 扩展坞',  5);
+INSERT INTO stock_sku (sku_id, sku_name, merchant_id, warn_threshold) VALUES
+(1001, '无线蓝牙耳机', 2, 20),
+(1002, '机械键盘',     2, 10),
+(1003, 'USB-C 扩展坞',  2,  5);
 
 INSERT INTO stock_count (sku_id, stock_num, version) VALUES
 (1001, 500, 0),

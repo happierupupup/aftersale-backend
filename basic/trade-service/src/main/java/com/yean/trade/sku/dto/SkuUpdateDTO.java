@@ -12,6 +12,9 @@ public class SkuUpdateDTO {
     @Schema(description = "规格名称")
     private String skuName;
 
+    @Schema(description = "归属商家用户 ID")
+    private Long merchantId;
+
     @Min(value = 0, message = "预警阈值不能为负")
     @Schema(description = "预警阈值")
     private Integer warnThreshold;

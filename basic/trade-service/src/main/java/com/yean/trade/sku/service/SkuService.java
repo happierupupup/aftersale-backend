@@ -17,4 +17,7 @@ public interface SkuService {
     void update(Long skuId, SkuUpdateDTO dto, String operator);
 
     void delete(Long skuId);
+
+    /** 按 SKU 解析归属商家；档案不存在或未配置商家则抛业务异常 */
+    Long requireMerchantId(Long skuId);
 }

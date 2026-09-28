@@ -61,6 +61,7 @@ public class SkuServiceImpl implements SkuService {
                     Sku sku = new Sku();
                     sku.setSkuId(dto.getSkuId());
                     sku.setSkuName(dto.getSkuName());
+                    sku.setMerchantId(dto.getMerchantId());
                     sku.setWarnThreshold(dto.getWarnThreshold() == null ? 10 : dto.getWarnThreshold());
                     sku.setUpdateBy(operator);
                     try {
@@ -83,6 +84,9 @@ public class SkuServiceImpl implements SkuService {
             Sku sku = requireSku(skuId);
             if (StringUtils.hasText(dto.getSkuName())) {
                 sku.setSkuName(dto.getSkuName());
+            }
+            if (dto.getMerchantId() != null) {
+                sku.setMerchantId(dto.getMerchantId());
             }
             if (dto.getWarnThreshold() != null) {
                 sku.setWarnThreshold(dto.getWarnThreshold());
@@ -108,6 +112,15 @@ public class SkuServiceImpl implements SkuService {
         });
     }
 
+    @Override
+    public Long requireMerchantId(Long skuId) {
+        Sku sku = requireSku(skuId);
+        if (sku.getMerchantId() == null) {
+            throw new BizException(ErrorEnum.SKU_MERCHANT_MISSING);
+        }
+        return sku.getMerchantId();
+    }
+
     private Sku requireSku(Long skuId) {
         Sku sku = skuMapper.selectBySkuId(skuId);
         if (sku == null) {
@@ -129,6 +142,7 @@ public class SkuServiceImpl implements SkuService {
         vo.setId(detail.getId());
         vo.setSkuId(detail.getSkuId());
         vo.setSkuName(detail.getSkuName());
+        vo.setMerchantId(detail.getMerchantId());
         vo.setStockNum(detail.getStockNum());
         vo.setVersion(detail.getVersion());
         vo.setWarnThreshold(detail.getWarnThreshold());

@@ -102,7 +102,7 @@ public class TicketController {
     }
 
     @OperateLog(module = "aftersale", action = "withdraw")
-    @Operation(summary = "撤回。USER，仅待审核")
+    @Operation(summary = "撤销申请。USER/ADMIN；待审核或待仓库发货（发货前）；流程结束为已撤回")
     @PostMapping("/withdraw")
     public R<TicketVO> withdraw(@Valid @RequestBody TicketActionDTO dto,
                                 @Parameter(in = ParameterIn.HEADER, hidden = true)

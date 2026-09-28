@@ -119,15 +119,19 @@ public class ProcessEngineService {
     public ProcessInstanceVO withdraw(ProcessActionDTO dto) {
         ProcessBiz biz = requireRunning(dto.getBusinessKey());
         Task task = requireCurrentTask(biz.getProcessInstanceId());
-        if (!ProcessTaskKeys.MERCHANT_APPROVE.equals(task.getTaskDefinitionKey())) {
-            throw new BizException(ErrorEnum.PROCESS_TASK_MISMATCH.getCode(), "仅待审核可撤回");
+        // 用户撤销：审核中或待仓库发货（发货前）可取消流程实例
+        String taskKey = task.getTaskDefinitionKey();
+        if (!ProcessTaskKeys.MERCHANT_APPROVE.equals(taskKey)
+                && !ProcessTaskKeys.WAREHOUSE_SHIP.equals(taskKey)) {
+            throw new BizException(ErrorEnum.PROCESS_TASK_MISMATCH.getCode(),
+                    "仅待审核或待仓库发货可撤销");
         }
         boolean admin = RoleEnum.ADMIN.name().equalsIgnoreCase(dto.getRole());
         boolean applicant = dto.getUserId() != null && dto.getUserId().equals(biz.getApplicantUserId());
         if (!admin && !applicant) {
             throw new BizException(ErrorEnum.PROCESS_ROLE_DENIED);
         }
-        String from = task.getTaskDefinitionKey();
+        String from = taskKey;
         runtimeService.deleteProcessInstance(biz.getProcessInstanceId(), "CANCELED");
         biz.setBizStatus(ProcessBizStatus.CANCELED.name());
         biz.setCurrentTaskKey(null);

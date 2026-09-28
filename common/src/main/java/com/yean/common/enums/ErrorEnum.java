@@ -34,6 +34,7 @@ public enum ErrorEnum {
 
     SKU_NOT_FOUND(2001, "SKU 不存在"),
     SKU_EXISTS(2002, "SKU 已存在"),
+    SKU_MERCHANT_MISSING(2003, "SKU 未配置归属商家"),
     STOCK_NOT_ENOUGH(2003, "库存不足"),
     STOCK_CHANGE_CONFLICT(2004, "库存变更冲突，请重试"),
 

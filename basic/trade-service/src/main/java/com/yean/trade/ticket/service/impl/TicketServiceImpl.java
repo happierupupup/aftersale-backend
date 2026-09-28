@@ -88,6 +88,13 @@ public class TicketServiceImpl implements TicketService {
         }
         OrderVO order = requireOrder(dto.getOrderNo());
         validateApply(order, dto, operator);
+        Long merchantId = skuService.requireMerchantId(order.getSkuId());
+        if (dto.getExchangeSkuId() != null) {
+            Long exchangeMerchant = skuService.requireMerchantId(dto.getExchangeSkuId());
+            if (!merchantId.equals(exchangeMerchant)) {
+                throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "换货目标 SKU 须属于同一商家");
+            }
+        }
         String aftersaleNo = nextAftersaleNo();
         TicketVO vo;
         try {
@@ -96,7 +103,8 @@ public class TicketServiceImpl implements TicketService {
                 row.setAftersaleNo(aftersaleNo);
                 row.setOrderNo(order.getOrderNo());
                 row.setUserId(order.getUserId());
-                row.setMerchantId(order.getMerchantId());
+                // 商家以商品档案为准（非订单上的冗余字段）
+                row.setMerchantId(merchantId);
                 row.setType(dto.getType());
                 row.setStatus(TicketStatus.PENDING.getCode());
                 row.setSkuId(order.getSkuId());
@@ -190,6 +198,13 @@ public class TicketServiceImpl implements TicketService {
         if (operator.getRole() != null && !RoleEnum.USER.name().equalsIgnoreCase(operator.getRole())
                 && !RoleEnum.ADMIN.name().equalsIgnoreCase(operator.getRole())) {
             throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+        }
+        Ticket row = requireAftersale(dto.getAftersaleNo());
+        int status = row.getStatus() == null ? -1 : row.getStatus();
+        // 待审核 / 待仓库发货（尚未发货、无库存副作用）可撤销
+        if (status != TicketStatus.PENDING.getCode() && status != TicketStatus.WAIT_SHIP.getCode()) {
+            throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW.getCode(),
+                    "仅待审核或待仓库发货可撤销申请");
         }
         return operate(dto, operator, TicketAction.WITHDRAW);
     }
@@ -329,8 +344,10 @@ public class TicketServiceImpl implements TicketService {
         switch (action) {
             case APPROVE:
             case REJECT:
-            case WITHDRAW:
                 return ProcessTaskKeys.MERCHANT_APPROVE;
+            case WITHDRAW:
+                // 流程侧按当前节点校验可撤销任务；此处不强制 expected
+                return null;
             case SHIP:
                 return ProcessTaskKeys.WAREHOUSE_SHIP;
             case RECEIVE:
