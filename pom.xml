@@ -33,10 +33,17 @@
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
         <springdoc.version>1.7.0</springdoc.version>
         <redisson.version>3.23.5</redisson.version>
+        <!-- 与 docker-compose RocketMQ 4.9.x 配套；2.3.x 默认拉 5.x 客户端 -->
+        <rocketmq-spring.version>2.2.3</rocketmq-spring.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.apache.rocketmq</groupId>
+                <artifactId>rocketmq-spring-boot-starter</artifactId>
+                <version>${rocketmq-spring.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.springdoc</groupId>
                 <artifactId>springdoc-openapi-ui</artifactId>

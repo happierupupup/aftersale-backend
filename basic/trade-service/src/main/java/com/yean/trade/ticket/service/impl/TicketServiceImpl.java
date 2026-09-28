@@ -16,8 +16,7 @@ import com.yean.common.dto.process.ProcessTaskKeys;
 import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
 import com.yean.common.rpc.ProcessFeignClient;
-import com.yean.trade.message.service.LocalMessageService;
-import com.yean.trade.message.service.impl.LocalMessageServiceImpl;
+import com.yean.trade.notify.AftersaleNotifyPublisher;
 import com.yean.trade.order.service.OrderService;
 import com.yean.trade.sku.service.SkuService;
 import com.yean.trade.ticket.dto.LogisticsInfo;
@@ -66,7 +65,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketNodeStrategyFactory strategyFactory;
     private final TicketMapper ticketMapper;
     private final TicketOperLogMapper ticketOperLogMapper;
-    private final LocalMessageService localMessageService;
+    private final AftersaleNotifyPublisher aftersaleNotifyPublisher;
     private final RedisBizLock redisBizLock;
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
@@ -114,8 +113,6 @@ public class TicketServiceImpl implements TicketService {
                     return null;
                 }
                 insertLog(aftersaleNo, operator, TicketAction.APPLY, null, TicketStatus.PENDING.getCode(), dto.getReason());
-                localMessageService.insert(aftersaleNo + ":APPLY", LocalMessageServiceImpl.TOPIC_NOTIFY,
-                        "{\"aftersaleNo\":\"" + aftersaleNo + "\",\"event\":\"APPLY\"}");
                 return toVO(row, false);
             });
         } finally {
@@ -145,6 +142,8 @@ public class TicketServiceImpl implements TicketService {
             row.setProcessInstanceId(process.getProcessInstanceId());
             ticketMapper.updateById(row);
             vo.setProcessInstanceId(process.getProcessInstanceId());
+            // 主链路成功后再发通知；失败吞掉，不回滚（outbox 下一步再补）
+            aftersaleNotifyPublisher.publish(row, TicketAction.APPLY);
         } catch (RuntimeException e) {
             ticketMapper.deleteById(requireAftersale(aftersaleNo).getId());
             stringRedisTemplate.delete(idemKey);
@@ -277,7 +276,7 @@ public class TicketServiceImpl implements TicketService {
                 .build();
         final int nextStatus = strategy.resolveNextStatus(ctx);
 
-        return transactionTemplate.execute(status -> {
+        TicketVO vo = transactionTemplate.execute(status -> {
             // 策略副作用（库存等）先于改状态；失败则本地事务回滚
             strategy.afterProcess(ctx);
             boolean release = releasesApplySlot(nextStatus);
@@ -286,8 +285,6 @@ public class TicketServiceImpl implements TicketService {
                 stringRedisTemplate.delete(applyIdemKey(row.getOrderNo(), row.getSkuId()));
             }
             insertLog(row.getAftersaleNo(), operator, action, before, nextStatus, dto.getRemark());
-            localMessageService.insert(row.getAftersaleNo() + ":" + action.name(), LocalMessageServiceImpl.TOPIC_NOTIFY,
-                    "{\"aftersaleNo\":\"" + row.getAftersaleNo() + "\",\"event\":\"" + action.name() + "\"}");
             row.setStatus(nextStatus);
             if (logistics != null) {
                 row.setLogisticsInfo(logistics);
@@ -297,6 +294,10 @@ public class TicketServiceImpl implements TicketService {
             }
             return toVO(row, false);
         });
+        if (vo != null) {
+            aftersaleNotifyPublisher.publish(row, action);
+        }
+        return vo;
     }
 
     private static RefundDetail buildRefundDetail(TicketAction action, TicketActionDTO dto, Ticket row) {

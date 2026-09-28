@@ -25,7 +25,7 @@ services:
     environment:
       NAMESRV_ADDR: rocketmq-namesrv:9876
     volumes:
-      - ./deploy/rocketmq/broker.conf:/home/rocketmq/rocketmq-4.9.7/conf/broker.conf
+      - ./config-file/rocketmq/broker.conf:/home/rocketmq/rocketmq-4.9.7/conf/broker.conf
     command: sh mqbroker -n rocketmq-namesrv:9876 -c /home/rocketmq/rocketmq-4.9.7/conf/broker.conf
     healthcheck:
       test: ["CMD-SHELL", "nc -z 127.0.0.1 10911 || exit 1"]

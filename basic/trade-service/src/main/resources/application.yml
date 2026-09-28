@@ -37,12 +37,22 @@ mybatis-plus:
 sku:
   cache-ttl-seconds: 300
 
+# RocketMQ：节点流转后直发售后通知（阶段 8 基础版，尚未 outbox）
+rocketmq:
+  name-server: 127.0.0.1:9876
+  producer:
+    group: aftersale-trade-producer
+    send-message-timeout: 3000
+
 # 本地直连可在 body 填操作人；正式经网关关掉
 yean:
   operator:
     allow-body: true
   operatelog:
     portal-url: http://127.0.0.1:8081
+  notify:
+    portal-url: http://127.0.0.1:8081
+    warehouse-user-id: 3
   process:
     url: http://127.0.0.1:8083
 
