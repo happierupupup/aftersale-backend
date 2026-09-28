@@ -10,6 +10,7 @@ public enum ErrorEnum {
     TOKEN_INVALID(401, "Token 无效"),
     TOKEN_EXPIRED(401, "Token 已过期"),
     TOKEN_BLACKLISTED(401, "已登出，请重新登陆"),
+    FORBIDDEN(403, "无接口访问权限"),
     NOT_FOUND(404, "接口不存在"),
     CONFLICT(409, "操作处理中，请勿重复提交"),
     SYSTEM_ERROR(500, "系统异常"),

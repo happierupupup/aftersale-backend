@@ -49,6 +49,95 @@ gateway:
       - /swagger-ui/**
       - /v3/api-docs/**
       - /webjars/**
+    # 路径级 ACL：命中规则才校验角色；未配置的路径默认放行。ADMIN 恒通。
+    acl:
+      enabled: true
+      rules:
+        # —— 售后写操作 ——
+        - path: /aftersale/apply
+          methods: [POST]
+          roles: [USER]
+        - path: /aftersale/withdraw
+          methods: [POST]
+          roles: [USER]
+        - path: /aftersale/receive
+          methods: [POST]
+          roles: [USER]
+        - path: /aftersale/approve
+          methods: [POST]
+          roles: [MERCHANT]
+        - path: /aftersale/reject
+          methods: [POST]
+          roles: [MERCHANT]
+        - path: /aftersale/refund
+          methods: [POST]
+          roles: [MERCHANT]
+        - path: /aftersale/ship
+          methods: [POST]
+          roles: [WAREHOUSE]
+        - path: /aftersale/rollback
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /aftersale/job/**
+          methods: [POST]
+          roles: [ADMIN]
+        # —— 库存写 ——
+        - path: /stock/deduct
+          methods: [POST]
+          roles: [WAREHOUSE]
+        - path: /stock/rollback
+          methods: [POST]
+          roles: [WAREHOUSE]
+        # —— SKU 写 ——
+        - path: /sku
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /sku/**
+          methods: [PUT, DELETE]
+          roles: [ADMIN]
+        # —— 订单写 ——
+        - path: /order
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /order/upload
+          methods: [POST]
+          roles: [ADMIN]
+        # —— 用户 / 部门写 ——
+        - path: /user
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /user/**
+          methods: [PUT, DELETE]
+          roles: [ADMIN]
+        - path: /dept
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /dept/**
+          methods: [PUT, DELETE]
+          roles: [ADMIN]
+        # —— outbox 手动投递 ——
+        - path: /message/job/**
+          methods: [POST]
+          roles: [ADMIN]
+        # —— 流程调试写 ——
+        - path: /process/start
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /process/complete
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /process/reject
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /process/withdraw
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /process/rollback
+          methods: [POST]
+          roles: [ADMIN]
+        - path: /process/timeout-close
+          methods: [POST]
+          roles: [ADMIN]
 
 # OpenFeign 写操作日志直连 portal（不经网关，避免套娃）
 yean:

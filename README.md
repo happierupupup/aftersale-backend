@@ -70,7 +70,7 @@ aftersale-backend
 ## 能力概览
 
 - **portal**：用户部门 CRUD、多角色、登录校验（不签发 Token）、站内通知、接收各服务操作日志
-- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、身份 Header 转发下游
+- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、**路径级角色 ACL**、身份 Header 转发下游
 - **trade / order**：列表、详情、单笔新增、CSV 批量上传
 - **trade / ticket**：Feign 驱动 Activiti；`TicketNodeStrategyFactory.getStrategy(action)` 同步状态/库存
 - **process-service**：BPMN、候选组、终态守卫、`process_oper_log`、回退上一节点

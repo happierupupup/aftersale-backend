@@ -102,6 +102,9 @@ public class GatewayErrorAttributes extends DefaultErrorAttributes {
         if (code == 401) {
             return HttpStatus.UNAUTHORIZED;
         }
+        if (code == 403) {
+            return HttpStatus.FORBIDDEN;
+        }
         if (code == 502) {
             return HttpStatus.BAD_GATEWAY;
         }
