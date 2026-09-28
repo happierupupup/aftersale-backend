@@ -1,11 +1,6 @@
--- 流程引擎库（process-service / Activiti）
-CREATE DATABASE IF NOT EXISTS aftersale_process
-    DEFAULT CHARACTER SET utf8mb4
-    DEFAULT COLLATE utf8mb4_unicode_ci;
-
-USE aftersale_process;
-
+-- 流程投影表（process_*，process-service / Activiti）
 -- act_* 表由 Activiti databaseSchemaUpdate=true 自动创建
+USE aftersale;
 
 DROP TABLE IF EXISTS process_oper_log;
 DROP TABLE IF EXISTS process_biz;

@@ -9,13 +9,13 @@ Spring Cloud 电商**售后退换货** Demo：网关鉴权 + 用户中心 + 交�
 ```
 aftersale-backend
 ├── common/              # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、ProcessFeignClient
-├── portal/              # 用户中心 :8081，库 aftersale_user
+├── portal/              # 用户中心 :8081（sys_* 表）
 ├── gateway/             # 网关鉴权 :8080（不连业务库）
 ├── basic/
 │   ├── trade-service/   # 交易业务 :8082（订单 + 售后 + SKU/库存；Feign 调流程）
-│   └── process-service/ # Activiti 流程引擎 :8083，库 aftersale_process
+│   └── process-service/ # Activiti 流程引擎 :8083（process_* / act_*）
 ├── config-file/
-│   ├── sql/             # 建库建表
+│   ├── sql/             # 建库建表（单库 aftersale）
 │   └── rocketmq/        # Broker 配置
 ├── docs/bench/          # 压测脚本与基线报告（见 baseline-guide.md）
 └── docker-compose.yml   # 可选：Nacos、RocketMQ
@@ -30,16 +30,16 @@ aftersale-backend
 
 `trade-service` 包结构（`com.yean.trade`）：
 
-| 包 | 含义 | 库 |
+| 包 | 含义 | 表 |
 |----|------|-----|
-| `order` | 模拟订单 | `aftersale_order` |
-| `ticket` | 售后单 + `strategy`/`rpc`（Feign 流程） | `aftersale_core` |
-| `sku` | SKU 档案 | `aftersale_stock` |
-| `inventory` | 库存计数 / 流水 | `aftersale_stock` |
-| `message` | 本地消息 outbox（暂不发 MQ） | `aftersale_core` |
+| `order` | 模拟订单 | `order_info` |
+| `ticket` | 售后单 + `strategy`/`rpc`（Feign 流程） | `aftersale_ticket` 等 |
+| `sku` | SKU 档案 | `stock_sku` |
+| `inventory` | 库存计数 / 流水 | `stock_count` / `stock_flow` |
+| `message` | 本地消息 outbox（暂不发 MQ） | `local_message` |
 
 `common`：`dto` / `rpc` / `config` + `enums` / `exception` / `result` / `lock`。  
-trade 三库 dynamic-datasource：`core`（主）/ `order` / `stock`；流程库在 process-service。
+全项目共用 MySQL 库 **`aftersale`**，用表名区分域；portal / trade / process 均连同一库。
 
 ## 售后流程（已可推进）
 
@@ -104,14 +104,14 @@ mysql -uroot -p < config-file/sql/06-process.sql
 # 已有售后库若缺换货列：mysql -uroot -p < config-file/sql/04b-aftersale-exchange-sku.sql
 ```
 
-| 脚本 | 库 / 内容 |
-|------|-----------|
-| `01` | 建库：`aftersale_user` / `aftersale_stock` / `aftersale_core` / `aftersale_order` |
-| `02` | 用户中心 + 演示账号 |
-| `03` | SKU 档案 + 库存计数 / 流水 |
+| 脚本 | 内容 |
+|------|------|
+| `01` | 建库：`aftersale`（唯一库） |
+| `02` | 用户中心 `sys_*` + 演示账号 |
+| `03` | SKU 档案 + 库存计数 / 流水 `stock_*` |
 | `04` | 售后单 `aftersale_ticket` + 操作日志 + outbox |
-| `05` | 模拟订单 |
-| `06` | 流程库 `aftersale_process`（`process_biz` / `process_oper_log`；`act_*` 由引擎自动建） |
+| `05` | 模拟订单 `order_info` |
+| `06` | 流程投影 `process_biz` / `process_oper_log`（`act_*` 由引擎自动建） |
 
 演示账号（密码均为 `123456`）：
 

@@ -1,7 +1,7 @@
-USE aftersale_order;
+USE aftersale;
 
 -- ---------------------------------------------------------------------------
--- 模拟订单库（trade-service / order 域）
+-- 模拟订单表（order_info，trade-service / order 域）
 -- 演示订单挂在用户 id=5、商家 id=2
 -- 订单状态 status：1待发货 2已发货 3已完成 4已关闭
 -- 支付状态 pay_status：0未支付 1已支付

@@ -1,6 +1,5 @@
 package com.yean.trade.sku.service.impl;
 
-import com.baomidou.dynamic.datasource.toolkit.DynamicDataSourceContextHolder;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
@@ -54,11 +53,8 @@ public class SkuServiceImpl implements SkuService {
 
     @Override
     public Long create(SkuCreateDTO dto, String operator) {
-        return redisBizLock.execute(LOCK_PREFIX, dto.getSkuId(), () -> {
-            // Same as inventory: open tx under stock DS, not primary core.
-            DynamicDataSourceContextHolder.push("stock");
-            try {
-                return transactionTemplate.execute(status -> {
+        return redisBizLock.execute(LOCK_PREFIX, dto.getSkuId(), () ->
+                transactionTemplate.execute(status -> {
                     if (skuMapper.selectBySkuId(dto.getSkuId()) != null) {
                         throw new BizException(ErrorEnum.SKU_EXISTS);
                     }
@@ -78,11 +74,7 @@ public class SkuServiceImpl implements SkuService {
                     count.setVersion(0);
                     inventoryCountMapper.insert(count);
                     return sku.getId();
-                });
-            } finally {
-                DynamicDataSourceContextHolder.poll();
-            }
-        });
+                }));
     }
 
     @Override

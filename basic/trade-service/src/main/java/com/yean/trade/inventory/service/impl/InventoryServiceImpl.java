@@ -1,6 +1,5 @@
 package com.yean.trade.inventory.service.impl;
 
-import com.baomidou.dynamic.datasource.toolkit.DynamicDataSourceContextHolder;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.yean.common.enums.ErrorEnum;
@@ -112,39 +111,31 @@ public class InventoryServiceImpl implements InventoryService {
         if (type == InventoryFlowType.DEDUCT && count.getStockNum() < dto.getChangeNum()) {
             throw new BizException(ErrorEnum.STOCK_NOT_ENOUGH);
         }
-        // TransactionTemplate binds a connection at open time; push stock DS first so
-        // the tx uses aftersale_stock instead of primary (aftersale_core).
-        DynamicDataSourceContextHolder.push("stock");
-        InventoryChangeVO vo;
-        try {
-            vo = transactionTemplate.execute(status -> {
-                int rows = type == InventoryFlowType.DEDUCT
-                        ? inventoryCountMapper.casDeduct(dto.getSkuId(), count.getVersion(), dto.getChangeNum())
-                        : inventoryCountMapper.casRollback(dto.getSkuId(), count.getVersion(), dto.getChangeNum());
-                if (rows == 0) {
-                    throw new BizException(ErrorEnum.STOCK_CHANGE_CONFLICT);
-                }
-                InventoryFlow flow = new InventoryFlow();
-                flow.setFlowNo("SF" + UUID.randomUUID().toString().replace("-", ""));
-                flow.setSkuId(dto.getSkuId());
-                flow.setChangeNum(dto.getChangeNum());
-                flow.setType(type.name());
-                flow.setBizNo(dto.getBizNo());
-                flow.setStatus(FLOW_SUCCESS);
-                flow.setOperator(operator);
-                flow.setRemark(dto.getRemark());
-                try {
-                    inventoryFlowMapper.insert(flow);
-                } catch (DuplicateKeyException e) {
-                    status.setRollbackOnly();
-                    return null;
-                }
-                InventoryCount after = inventoryCountMapper.selectBySkuId(dto.getSkuId());
-                return toChangeVO(flow, after, detail.getWarnThreshold(), false);
-            });
-        } finally {
-            DynamicDataSourceContextHolder.poll();
-        }
+        InventoryChangeVO vo = transactionTemplate.execute(status -> {
+            int rows = type == InventoryFlowType.DEDUCT
+                    ? inventoryCountMapper.casDeduct(dto.getSkuId(), count.getVersion(), dto.getChangeNum())
+                    : inventoryCountMapper.casRollback(dto.getSkuId(), count.getVersion(), dto.getChangeNum());
+            if (rows == 0) {
+                throw new BizException(ErrorEnum.STOCK_CHANGE_CONFLICT);
+            }
+            InventoryFlow flow = new InventoryFlow();
+            flow.setFlowNo("SF" + UUID.randomUUID().toString().replace("-", ""));
+            flow.setSkuId(dto.getSkuId());
+            flow.setChangeNum(dto.getChangeNum());
+            flow.setType(type.name());
+            flow.setBizNo(dto.getBizNo());
+            flow.setStatus(FLOW_SUCCESS);
+            flow.setOperator(operator);
+            flow.setRemark(dto.getRemark());
+            try {
+                inventoryFlowMapper.insert(flow);
+            } catch (DuplicateKeyException e) {
+                status.setRollbackOnly();
+                return null;
+            }
+            InventoryCount after = inventoryCountMapper.selectBySkuId(dto.getSkuId());
+            return toChangeVO(flow, after, detail.getWarnThreshold(), false);
+        });
         if (vo == null) {
             InventoryFlow duplicated = inventoryFlowMapper.selectByBizNoAndType(dto.getBizNo(), type.name());
             if (duplicated != null) {

@@ -1,6 +1,5 @@
 package com.yean.trade.sku.mapper;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.yean.trade.sku.dto.SkuDetail;
@@ -10,7 +9,6 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-@DS("stock")
 public interface SkuMapper extends BaseMapper<Sku> {
 
     Sku selectBySkuId(@Param("skuId") Long skuId);

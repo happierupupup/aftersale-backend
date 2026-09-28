@@ -1,7 +1,7 @@
-USE aftersale_user;
+USE aftersale;
 
 -- ---------------------------------------------------------------------------
--- portal 用户中心库
+-- portal 用户中心表（sys_*）
 -- 角色见 RoleEnum：USER / MERCHANT / ADMIN / WAREHOUSE
 -- 一人可多角色，关系表 sys_user_role；sys_user.role 存主角色（列表第一项）
 -- 演示账号密码均为 123456（BCrypt）

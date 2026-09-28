@@ -1,7 +1,7 @@
-USE aftersale_stock;
+USE aftersale;
 
 -- ---------------------------------------------------------------------------
--- stock-service
+-- SKU / 库存表（stock_*，trade-service）
 -- SKU 档案：stock_sku（低频改：名称、预警阈值、update_by）
 -- 库存计数：stock_count（高频写：stock_num + version 乐观锁）
 -- 库存流水：stock_flow（operator；幂等 uk_biz_no_type）

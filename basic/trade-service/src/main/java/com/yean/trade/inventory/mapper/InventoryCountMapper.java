@@ -1,13 +1,11 @@
 package com.yean.trade.inventory.mapper;
 
-import com.baomidou.dynamic.datasource.annotation.DS;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.yean.trade.inventory.dto.InventoryCount;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 @Mapper
-@DS("stock")
 public interface InventoryCountMapper extends BaseMapper<InventoryCount> {
 
     InventoryCount selectBySkuId(@Param("skuId") Long skuId);

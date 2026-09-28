@@ -14,6 +14,8 @@ import com.yean.common.dto.process.ProcessInstanceVO;
 import com.yean.common.dto.process.ProcessStartDTO;
 import com.yean.common.dto.process.ProcessTaskKeys;
 import com.yean.common.result.PageResult;
+import com.yean.common.result.R;
+import com.yean.common.rpc.ProcessFeignClient;
 import com.yean.trade.message.service.LocalMessageService;
 import com.yean.trade.message.service.impl.LocalMessageServiceImpl;
 import com.yean.trade.order.service.OrderService;
@@ -32,7 +34,6 @@ import com.yean.trade.ticket.enums.TicketStatus;
 import com.yean.trade.ticket.enums.TicketType;
 import com.yean.trade.ticket.mapper.TicketMapper;
 import com.yean.trade.ticket.mapper.TicketOperLogMapper;
-import com.yean.trade.ticket.rpc.ProcessRpc;
 import com.yean.trade.ticket.service.TicketService;
 import com.yean.trade.ticket.strategy.TicketNodeContext;
 import com.yean.trade.ticket.strategy.TicketNodeStrategy;
@@ -61,7 +62,7 @@ public class TicketServiceImpl implements TicketService {
 
     private final OrderService orderService;
     private final SkuService skuService;
-    private final ProcessRpc processRpc;
+    private final ProcessFeignClient processFeignClient;
     private final TicketNodeStrategyFactory strategyFactory;
     private final TicketMapper ticketMapper;
     private final TicketOperLogMapper ticketOperLogMapper;
@@ -139,7 +140,7 @@ public class TicketServiceImpl implements TicketService {
             start.setOperator(operator.getUsername());
             start.setRole(operator.getRole());
             start.setRemark(dto.getReason());
-            ProcessInstanceVO process = processRpc.start(start);
+            ProcessInstanceVO process = R.unwrap(processFeignClient.start(start));
             Ticket row = requireAftersale(aftersaleNo);
             row.setProcessInstanceId(process.getProcessInstanceId());
             ticketMapper.updateById(row);
@@ -249,16 +250,16 @@ public class TicketServiceImpl implements TicketService {
         ProcessInstanceVO process;
         switch (action) {
             case REJECT:
-                process = processRpc.reject(processDto);
+                process = R.unwrap(processFeignClient.reject(processDto));
                 break;
             case WITHDRAW:
-                process = processRpc.withdraw(processDto);
+                process = R.unwrap(processFeignClient.withdraw(processDto));
                 break;
             case ROLLBACK:
-                process = processRpc.rollback(processDto);
+                process = R.unwrap(processFeignClient.rollback(processDto));
                 break;
             default:
-                process = processRpc.complete(processDto);
+                process = R.unwrap(processFeignClient.complete(processDto));
                 break;
         }
 

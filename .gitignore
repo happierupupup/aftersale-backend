@@ -4,6 +4,10 @@ target/
 !**/src/test/**/target/
 plan.md
 problem.md
+.cursor/
+*.log
+logs/
+docs/
 
 ### IntelliJ IDEA ###
 .idea/
@@ -37,8 +41,3 @@ build/
 
 ### Mac OS ###
 .DS_Store
-
-### Logs ###
-*.log
-logs/
-docs/

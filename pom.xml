@@ -31,7 +31,6 @@
         <spring-cloud.version>2021.0.8</spring-cloud.version>
         <spring-cloud-alibaba.version>2021.0.5.0</spring-cloud-alibaba.version>
         <mybatis-plus.version>3.5.5</mybatis-plus.version>
-        <dynamic-datasource.version>3.6.1</dynamic-datasource.version>
         <springdoc.version>1.7.0</springdoc.version>
         <redisson.version>3.23.5</redisson.version>
     </properties>
@@ -47,11 +46,6 @@
                 <groupId>com.baomidou</groupId>
                 <artifactId>mybatis-plus-boot-starter</artifactId>
                 <version>${mybatis-plus.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.baomidou</groupId>
-                <artifactId>dynamic-datasource-spring-boot-starter</artifactId>
-                <version>${dynamic-datasource.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.redisson</groupId>

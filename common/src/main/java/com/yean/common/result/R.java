@@ -1,6 +1,7 @@
 package com.yean.common.result;
 
 import com.yean.common.enums.ErrorEnum;
+import com.yean.common.exception.BizException;
 import lombok.Data;
 
 @Data
@@ -35,5 +36,16 @@ public class R<T> {
         r.setCode(code);
         r.setMsg(msg);
         return r;
+    }
+
+    /** Feign / HTTP 调用结果解包：失败或空响应抛 BizException。 */
+    public static <T> T unwrap(R<T> r) {
+        if (r == null) {
+            throw new BizException("远程调用无响应");
+        }
+        if (r.getCode() != 0) {
+            throw new BizException(r.getCode(), r.getMsg());
+        }
+        return r.getData();
     }
 }
