@@ -78,6 +78,18 @@
         ORDER BY id DESC
     </select>
 
+    <select id="selectPendingByStatuses" resultMap="TicketResultMap">
+        SELECT <include refid="TicketColumns"/>
+        FROM aftersale_ticket
+        WHERE active_flag = 1
+          AND status IN
+          <foreach collection="statuses" item="s" open="(" separator="," close=")">
+              #{s}
+          </foreach>
+        ORDER BY id ASC
+        LIMIT #{limit}
+    </select>
+
     <update id="updateStatus">
         UPDATE aftersale_ticket
         SET status = #{status}

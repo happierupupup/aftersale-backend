@@ -61,6 +61,8 @@ aftersale-backend
 
 通知（阶段 **8a**）：节点流转主链路成功后直发 RocketMQ Topic `aftersale_notify` → trade Consumer → portal `/notify/send` 写 `sys_notify`。申请时 **`merchant_id` 取自 `stock_sku`（按商品查商家）**，待审/撤销通知推送给该商家。发送失败只打日志、不回滚业务（**无 outbox 补投**；8b 再用 `local_message`）。测通知步骤见本地 `docs/test.md` §7。
 
+催办：trade 每天 **10:00**（Asia/Shanghai）扫描待审核/待发货/待退款单，聚合站内信提醒责任人；可手动 `POST /aftersale/job/pending-remind`。
+
 售后状态码：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（`5已驳回` / `6已撤回`）。用户可在 **待审核或待仓库发货** 调用 `POST /aftersale/withdraw` 撤销（流程实例删除为 CANCELED）。
 
 ## 能力概览

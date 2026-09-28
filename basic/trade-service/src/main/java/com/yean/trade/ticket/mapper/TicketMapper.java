@@ -9,6 +9,8 @@ import com.yean.trade.ticket.dto.TicketQueryDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 @Mapper
 public interface TicketMapper extends BaseMapper<Ticket> {
 
@@ -18,6 +20,10 @@ public interface TicketMapper extends BaseMapper<Ticket> {
     Ticket selectActiveByOrderNoAndSkuId(@Param("orderNo") String orderNo, @Param("skuId") Long skuId);
 
     IPage<Ticket> selectListByQuery(IPage<Ticket> page, @Param("q") TicketQueryDTO query);
+
+    /** 待处理催办：指定状态且进行中 */
+    List<Ticket> selectPendingByStatuses(@Param("statuses") List<Integer> statuses,
+                                         @Param("limit") int limit);
 
     /** 更新状态；releaseActive=true 时把 active_flag 置 NULL（驳回/撤回，允许重新申请） */
     int updateStatus(@Param("id") Long id,

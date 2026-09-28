@@ -55,6 +55,13 @@ yean:
     warehouse-user-id: 3
   process:
     url: http://127.0.0.1:8083
+  schedule:
+    pending-remind:
+      enabled: true
+      # 每天 10:00（Asia/Shanghai）
+      cron: "0 0 10 * * ?"
+      scan-limit: 1000
+      preview-limit: 5
 
 springdoc:
   swagger-ui:
