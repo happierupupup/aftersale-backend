@@ -4,6 +4,7 @@ import com.yean.common.rpc.NotifyFeignClient;
 import com.yean.common.rpc.OperateLogFeignClient;
 import com.yean.common.rpc.ProcessFeignClient;
 import com.yean.trade.config.SkuCacheProperties;
+import com.yean.trade.message.config.LocalMessageProperties;
 import com.yean.trade.notify.config.NotifyProperties;
 import com.yean.trade.ticket.job.PendingRemindProperties;
 import org.springframework.boot.SpringApplication;
@@ -18,7 +19,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @EnableScheduling
 @EnableFeignClients(clients = {OperateLogFeignClient.class, ProcessFeignClient.class, NotifyFeignClient.class})
-@EnableConfigurationProperties({SkuCacheProperties.class, NotifyProperties.class, PendingRemindProperties.class})
+@EnableConfigurationProperties({
+        SkuCacheProperties.class,
+        NotifyProperties.class,
+        PendingRemindProperties.class,
+        LocalMessageProperties.class
+})
 @EnableDiscoveryClient
 @SpringBootApplication
 public class TradeApplication {

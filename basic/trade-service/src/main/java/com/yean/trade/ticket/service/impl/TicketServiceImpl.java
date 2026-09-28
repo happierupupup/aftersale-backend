@@ -148,10 +148,13 @@ public class TicketServiceImpl implements TicketService {
             ProcessInstanceVO process = R.unwrap(processFeignClient.start(start));
             Ticket row = requireAftersale(aftersaleNo);
             row.setProcessInstanceId(process.getProcessInstanceId());
-            ticketMapper.updateById(row);
+            // 流程已起：同事务写 processInstanceId + outbox，随后由 Sender 投递
+            transactionTemplate.execute(status -> {
+                ticketMapper.updateById(row);
+                aftersaleNotifyPublisher.publish(row, TicketAction.APPLY);
+                return null;
+            });
             vo.setProcessInstanceId(process.getProcessInstanceId());
-            // 主链路成功后再发通知；失败吞掉，不回滚（outbox 下一步再补）
-            aftersaleNotifyPublisher.publish(row, TicketAction.APPLY);
         } catch (RuntimeException e) {
             ticketMapper.deleteById(requireAftersale(aftersaleNo).getId());
             stringRedisTemplate.delete(idemKey);
@@ -307,11 +310,9 @@ public class TicketServiceImpl implements TicketService {
             if (refundDetail != null) {
                 row.setRefundDetail(refundDetail);
             }
+            aftersaleNotifyPublisher.publish(row, action);
             return toVO(row, false);
         });
-        if (vo != null) {
-            aftersaleNotifyPublisher.publish(row, action);
-        }
         return vo;
     }
 
