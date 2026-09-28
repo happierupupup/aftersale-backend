@@ -238,6 +238,44 @@ public class TicketServiceImpl implements TicketService {
         return operate(dto, operator, TicketAction.ROLLBACK);
     }
 
+    @Override
+    public TicketVO timeoutReject(String aftersaleNo, String remark) {
+        if (!StringUtils.hasText(aftersaleNo)) {
+            throw new BizException(ErrorEnum.PARAM_INVALID);
+        }
+        Operator system = new Operator(0L, "SYSTEM", RoleEnum.ADMIN.name());
+        return redisBizLock.execute(LOCK_PREFIX, aftersaleNo, () -> {
+            Ticket row = requireAftersale(aftersaleNo);
+            assertNotTerminal(row);
+            int status = row.getStatus() == null ? -1 : row.getStatus();
+            if (status != TicketStatus.PENDING.getCode()
+                    && status != TicketStatus.WAIT_SHIP.getCode()
+                    && status != TicketStatus.WAIT_REFUND.getCode()) {
+                throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW.getCode(),
+                        "仅待审核/待发货/待退款可超时关单");
+            }
+            int before = status;
+            ProcessActionDTO processDto = new ProcessActionDTO();
+            processDto.setBusinessKey(aftersaleNo);
+            processDto.setUserId(system.getUserId());
+            processDto.setOperator(system.getUsername());
+            processDto.setRole(system.getRole());
+            processDto.setRemark(remark);
+            R.unwrap(processFeignClient.timeoutClose(processDto));
+
+            int nextStatus = TicketStatus.REJECTED.getCode();
+            return transactionTemplate.execute(tx -> {
+                ticketMapper.updateStatus(row.getId(), nextStatus, true, null, null);
+                stringRedisTemplate.delete(applyIdemKey(row.getOrderNo(), row.getSkuId()));
+                insertLog(aftersaleNo, system, TicketAction.REJECT, before, nextStatus, remark);
+                row.setStatus(nextStatus);
+                row.setActiveFlag(null);
+                aftersaleNotifyPublisher.publishTimeoutClose(row);
+                return toVO(row, false);
+            });
+        });
+    }
+
     private TicketVO operate(TicketActionDTO dto, Operator operator, TicketAction action) {
         requireUserId(operator);
         String opKey = "aftersale:op:" + dto.getAftersaleNo() + ":" + action.name();

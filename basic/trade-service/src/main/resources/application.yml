@@ -69,6 +69,12 @@ yean:
       scan-limit: 100
       max-retry: 16
       retry-base-seconds: 5
+    timeout-close:
+      enabled: true
+      # 每天 2:30（Asia/Shanghai）：产生超过 48h 未办结则自动关闭
+      cron: "0 30 2 * * ?"
+      timeout-hours: 48
+      scan-limit: 200
 
 springdoc:
   swagger-ui:

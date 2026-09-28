@@ -46,6 +46,12 @@ public class ProcessController {
         return R.ok(processEngineService.reject(dto));
     }
 
+    @Operation(summary = "超时关单（任意运行中节点结束为 REJECTED，仅 ADMIN）")
+    @PostMapping("/timeout-close")
+    public R<ProcessInstanceVO> timeoutClose(@Valid @RequestBody ProcessActionDTO dto) {
+        return R.ok(processEngineService.timeoutClose(dto));
+    }
+
     @Operation(summary = "撤回（结束为 CANCELED）")
     @PostMapping("/withdraw")
     public R<ProcessInstanceVO> withdraw(@Valid @RequestBody ProcessActionDTO dto) {

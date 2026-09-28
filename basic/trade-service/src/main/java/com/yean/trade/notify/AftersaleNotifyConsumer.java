@@ -62,11 +62,18 @@ public class AftersaleNotifyConsumer implements RocketMQListener<AftersaleNotify
     }
 
     private List<NotifySendDTO> buildNotifyList(AftersaleNotifyMessage msg) {
-        TicketAction action = parseAction(msg.getEvent());
         String no = msg.getAftersaleNo();
         String sku = StringUtils.hasText(msg.getSkuName()) ? msg.getSkuName() : "商品";
         List<NotifySendDTO> list = new ArrayList<>(2);
 
+        // 超时关单：只通知申请人
+        if ("TIMEOUT_CLOSE".equalsIgnoreCase(msg.getEvent())) {
+            list.add(inbox(msg.getUserId(), "售后已超时关闭",
+                    "您的售后单 " + no + " 因超过处理时限未办结，已自动关闭。"));
+            return list;
+        }
+
+        TicketAction action = parseAction(msg.getEvent());
         switch (action) {
             case APPLY:
                 list.add(inbox(msg.getMerchantId(), "新售后待审核",

@@ -32,4 +32,10 @@ public interface TicketService {
 
     /** 流程回退到上一 userTask，并同步售后状态 */
     TicketVO rollback(TicketActionDTO dto, Operator operator);
+
+    /**
+     * 系统超时关单：结束流程并置已驳回、释放申请位、入队驳回通知。
+     * 操作人记为 SYSTEM / ADMIN。
+     */
+    TicketVO timeoutReject(String aftersaleNo, String remark);
 }

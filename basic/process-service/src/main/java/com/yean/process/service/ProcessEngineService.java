@@ -116,6 +116,24 @@ public class ProcessEngineService {
     }
 
     @Transactional(rollbackFor = Exception.class)
+    public ProcessInstanceVO timeoutClose(ProcessActionDTO dto) {
+        if (!RoleEnum.ADMIN.name().equalsIgnoreCase(dto.getRole())) {
+            throw new BizException(ErrorEnum.PROCESS_ROLE_DENIED);
+        }
+        ProcessBiz biz = requireRunning(dto.getBusinessKey());
+        Task task = requireCurrentTask(biz.getProcessInstanceId());
+        String from = task.getTaskDefinitionKey();
+        runtimeService.deleteProcessInstance(biz.getProcessInstanceId(), "TIMEOUT_REJECTED");
+        biz.setBizStatus(ProcessBizStatus.REJECTED.name());
+        biz.setCurrentTaskKey(null);
+        processBizMapper.updateById(biz);
+        insertLog(biz, "TIMEOUT_REJECT", from, from, null, dto.getOperator(), dto.getRole(), dto.getRemark());
+        ProcessInstanceVO vo = toVo(biz, null, from);
+        vo.setEnded(true);
+        return vo;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
     public ProcessInstanceVO withdraw(ProcessActionDTO dto) {
         ProcessBiz biz = requireRunning(dto.getBusinessKey());
         Task task = requireCurrentTask(biz.getProcessInstanceId());

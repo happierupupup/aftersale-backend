@@ -27,10 +27,22 @@ public class AftersaleNotifyPublisher {
         if (ticket == null || action == null || ticket.getAftersaleNo() == null) {
             return;
         }
+        enqueue(ticket, action.name(), ticket.getAftersaleNo() + ":" + action.name());
+    }
+
+    /** 超时关单通知申请人（与人工驳回文案区分） */
+    public void publishTimeoutClose(Ticket ticket) {
+        if (ticket == null || ticket.getAftersaleNo() == null) {
+            return;
+        }
+        enqueue(ticket, "TIMEOUT_CLOSE", ticket.getAftersaleNo() + ":TIMEOUT_CLOSE");
+    }
+
+    private void enqueue(Ticket ticket, String event, String bizId) {
         AftersaleNotifyMessage msg = new AftersaleNotifyMessage();
-        msg.setBizId(ticket.getAftersaleNo() + ":" + action.name());
+        msg.setBizId(bizId);
         msg.setAftersaleNo(ticket.getAftersaleNo());
-        msg.setEvent(action.name());
+        msg.setEvent(event);
         msg.setUserId(ticket.getUserId());
         msg.setMerchantId(ticket.getMerchantId());
         msg.setStatus(ticket.getStatus());

@@ -25,6 +25,11 @@ public interface TicketMapper extends BaseMapper<Ticket> {
     List<Ticket> selectPendingByStatuses(@Param("statuses") List<Integer> statuses,
                                          @Param("limit") int limit);
 
+    /** 超时关单：进行中且创建时间早于 before */
+    List<Ticket> selectTimedOut(@Param("statuses") List<Integer> statuses,
+                                @Param("before") java.time.LocalDateTime before,
+                                @Param("limit") int limit);
+
     /** 更新状态；releaseActive=true 时把 active_flag 置 NULL（驳回/撤回，允许重新申请） */
     int updateStatus(@Param("id") Long id,
                      @Param("status") int status,

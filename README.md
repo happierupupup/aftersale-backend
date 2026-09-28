@@ -62,7 +62,8 @@ aftersale-backend
 
 通知（阶段 **8b**）：节点流转与 `local_message(NEW)` **同事务**提交 → 定时/手动 Sender 投递 Topic `aftersale_notify` → trade Consumer → portal `/notify/send`。申请时 **`merchant_id` 取自 `stock_sku`**。MQ 宕机时消息停在 NEW，恢复后补投。测通知见本地 `docs/test.md` §7。
 
-催办：trade 每天 **10:00**（Asia/Shanghai）扫描待审核/待发货/待退款单，聚合站内信提醒责任人；可手动 `POST /aftersale/job/pending-remind`。
+催办：trade 每天 **10:00**（Asia/Shanghai）扫描待审核/待发货/待退款单，聚合站内信提醒责任人；可手动 `POST /aftersale/job/pending-remind`。  
+超时关单：每天 **2:30** 将**产生超过 48 小时**仍停在待审核/待发货/待退款的单自动关闭，并通知**申请人**；可手动 `POST /aftersale/job/timeout`。
 
 售后状态码：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（`5已驳回` / `6已撤回`）。用户可在 **待审核或待仓库发货** 调用 `POST /aftersale/withdraw` 撤销（流程实例删除为 CANCELED）。
 
@@ -351,4 +352,5 @@ macOS 若已用 brew / 本机二进制起 Redis、MQ，**不要再**对同端口
 
 - 流程推进 + 退货/换货库存联动 **已落地**；须先起 `process-service` 再起 `trade`。
 - 售后通知 **8b 已落地**（同事务写 `local_message` + Sender 扫表投递）；停 MQ 时消息停 NEW，恢复后发出。
+- 催办 **9a** / 超时关单 **9b** 已落地（`/aftersale/job/pending-remind`、`/aftersale/job/timeout`）。
 - 联调步骤：本地 `docs/test.md`；排错 / 设计记录：本地 `docs/problem.md`；实现计划：[`plan.md`](plan.md)。
