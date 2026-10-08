@@ -90,14 +90,14 @@ IdeaProjects/
 ## 能力概览
 
 - **portal**：用户部门 CRUD、多角色、登录校验（不签发 Token）、站内通知、操作日志落库
-- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、**路径级角色 ACL**、注入 `X-User-*`
+- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、**路径级角色 ACL**、**Sentinel 限流**、注入 `X-User-*`
 - **trade / order**：列表、详情、单笔新增、CSV 批量上传
 - **trade / ticket**：草稿保存/加载/删除；`apply` 提交；Feign 驱动 Activiti；策略同步状态/库存；数据权限 + 终态只读
 - **process-service**：BPMN、候选组、终态守卫、`process_oper_log`、回退上一节点
 - **trade / sku + inventory**：SKU CRUD；扣减/回退（幂等 + 锁 + CAS）；写接口限 WAREHOUSE/ADMIN
 - **trade / notify + message**：售后事件 → outbox → RocketMQ → 站内信（8b）
 - **统一返回**：`{code, msg, data}`，分页 `PageResult`，错误码 `ErrorEnum`
-- **前端**：登录按角色菜单；售后工作台左列表右详情；管理员用户管理（页面已有，草稿双按钮待接）
+- **前端**：登录按角色菜单；售后工作台左列表右详情；管理员用户管理；申请页保存/提交
 
 ## 接口前缀（经 gateway，也可直连服务端口）
 
@@ -389,9 +389,26 @@ docker compose stop          # 停全部 compose 服务
 
 macOS 若已用 brew / 本机二进制起 Redis、MQ，**不要再**对同端口 `compose up`，避免冲突。Nacos 仍可单独 `docker compose up -d nacos`。
 
-## 说明与待办
+### Sentinel 限流（gateway）
 
-- 流程推进 + 退货/换货库存联动 **已落地**；须先起 `process-service` 再起 `trade`。
-- 售后通知 **8b**、催办 **9a**、超时关单 **9b** **已落地**。
-- 草稿 **已落地**（保存 / 加载 / 提交先删再增）；前端申请页「保存+提交」**已接**。
-- 数据权限 T1 / 终态只读 T2 **已落地**；前端工作台与角色菜单见 [aftersale-frontend](https://github.com/happierupupup/aftersale-frontend)。
+本地规则写在 `SentinelRulesConfig`（不依赖 Dashboard）：
+
+| 资源 | 方式 | 默认阈值 | 演示 |
+|------|------|----------|------|
+| `/api/auth/login` | WebFilter + FlowRule | **30 QPS** | 可临时调低到 3～5 |
+| `/aftersale/apply` | 自定义 API GatewayFlowRule | **50 QPS** | 可临时调低到 5 |
+| 路由 `trade-service` / `portal` | 按 routeId | **500 QPS** | 可临时调低到 20～50 |
+
+阈值改 `SentinelRulesConfig` 常量后重启 gateway。超限返回 HTTP **429**：`{"code":429,"msg":"请求过于频繁，请稍后再试","data":null}`。
+
+```bash
+# 演示前把 LOGIN_QPS 临时调低，再连打登录看部分 429
+for i in $(seq 1 20); do
+  curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8080/api/auth/login \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"00000","password":"123456"}'
+done
+```
+
+可选 Dashboard：`SENTINEL_DASHBOARD=127.0.0.1:8858` 后再启 gateway。
+

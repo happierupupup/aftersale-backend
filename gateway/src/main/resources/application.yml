@@ -18,6 +18,17 @@ spring:
       discovery:
         server-addr: 127.0.0.1:8848
         enabled: false
+    sentinel:
+      eager: true
+      # 规则见 SentinelRulesConfig（本地硬编码）；Dashboard 可选，例：127.0.0.1:8858
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:}
+      scg:
+        fallback:
+          mode: response
+          response-status: 429
+          content-type: application/json;charset=UTF-8
+          response-body: '{"code":429,"msg":"请求过于频繁，请稍后再试","data":null}'
     gateway:
       discovery:
         locator:

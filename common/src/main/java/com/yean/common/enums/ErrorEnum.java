@@ -13,6 +13,7 @@ public enum ErrorEnum {
     FORBIDDEN(403, "无接口访问权限"),
     NOT_FOUND(404, "接口不存在"),
     CONFLICT(409, "操作处理中，请勿重复提交"),
+    TOO_MANY_REQUESTS(429, "请求过于频繁，请稍后再试"),
     SYSTEM_ERROR(500, "系统异常"),
     GATEWAY_DOWN(502, "下游服务不可用"),
 

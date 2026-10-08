@@ -105,6 +105,9 @@ public class GatewayErrorAttributes extends DefaultErrorAttributes {
         if (code == 403) {
             return HttpStatus.FORBIDDEN;
         }
+        if (code == 429) {
+            return HttpStatus.TOO_MANY_REQUESTS;
+        }
         if (code == 502) {
             return HttpStatus.BAD_GATEWAY;
         }
