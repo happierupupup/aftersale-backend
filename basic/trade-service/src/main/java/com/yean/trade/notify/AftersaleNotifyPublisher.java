@@ -3,6 +3,7 @@ package com.yean.trade.notify;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yean.trade.message.service.LocalMessageService;
+import com.yean.trade.notify.config.NotifyProperties;
 import com.yean.trade.notify.dto.AftersaleNotifyMessage;
 import com.yean.trade.ticket.dto.Ticket;
 import com.yean.trade.ticket.enums.TicketAction;
@@ -11,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 售后通知入 outbox（local_message）。须在业务本地事务内调用，由 Sender 扫表发 MQ。
+ * 售后通知：默认写 outbox（local_message）；{@code yean.notify.delivery=sync} 时请求内直调 portal（§9.4 对照）。
  */
 @Slf4j
 @Component
@@ -21,13 +22,15 @@ public class AftersaleNotifyPublisher {
     public static final String TOPIC = "aftersale_notify";
 
     private final LocalMessageService localMessageService;
+    private final AftersaleNotifySender aftersaleNotifySender;
+    private final NotifyProperties notifyProperties;
     private final ObjectMapper objectMapper;
 
     public void publish(Ticket ticket, TicketAction action) {
         if (ticket == null || action == null || ticket.getAftersaleNo() == null) {
             return;
         }
-        enqueue(ticket, action.name(), ticket.getAftersaleNo() + ":" + action.name());
+        dispatch(ticket, action.name(), ticket.getAftersaleNo() + ":" + action.name());
     }
 
     /** 超时关单通知申请人（与人工驳回文案区分） */
@@ -35,10 +38,25 @@ public class AftersaleNotifyPublisher {
         if (ticket == null || ticket.getAftersaleNo() == null) {
             return;
         }
-        enqueue(ticket, "TIMEOUT_CLOSE", ticket.getAftersaleNo() + ":TIMEOUT_CLOSE");
+        dispatch(ticket, "TIMEOUT_CLOSE", ticket.getAftersaleNo() + ":TIMEOUT_CLOSE");
     }
 
-    private void enqueue(Ticket ticket, String event, String bizId) {
+    private void dispatch(Ticket ticket, String event, String bizId) {
+        AftersaleNotifyMessage msg = toMessage(ticket, event, bizId);
+        if (notifyProperties.isSyncDelivery()) {
+            aftersaleNotifySender.sendToPortal(msg);
+            log.info("aftersale notify sync sent, bizId={}", bizId);
+            return;
+        }
+        try {
+            localMessageService.insert(msg.getBizId(), TOPIC, objectMapper.writeValueAsString(msg));
+            log.info("aftersale notify enqueued, bizId={}", bizId);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("serialize aftersale notify failed, bizId=" + bizId, e);
+        }
+    }
+
+    private static AftersaleNotifyMessage toMessage(Ticket ticket, String event, String bizId) {
         AftersaleNotifyMessage msg = new AftersaleNotifyMessage();
         msg.setBizId(bizId);
         msg.setAftersaleNo(ticket.getAftersaleNo());
@@ -48,11 +66,6 @@ public class AftersaleNotifyPublisher {
         msg.setStatus(ticket.getStatus());
         msg.setType(ticket.getType());
         msg.setSkuName(ticket.getSkuName());
-        try {
-            localMessageService.insert(msg.getBizId(), TOPIC, objectMapper.writeValueAsString(msg));
-            log.info("aftersale notify enqueued, bizId={}", msg.getBizId());
-        } catch (JsonProcessingException e) {
-            throw new IllegalStateException("serialize aftersale notify failed, bizId=" + msg.getBizId(), e);
-        }
+        return msg;
     }
 }

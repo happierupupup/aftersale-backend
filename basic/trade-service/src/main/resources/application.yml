@@ -56,6 +56,8 @@ yean:
   operatelog:
     portal-url: http://127.0.0.1:8081
   notify:
+    # outbox=写本地消息表（默认）；sync=请求内直调 portal（仅 §9.4 对照压测，测完改回）
+    delivery: outbox
     portal-url: http://127.0.0.1:8081
     warehouse-user-id: 3
   process:
