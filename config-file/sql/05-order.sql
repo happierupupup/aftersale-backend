@@ -31,6 +31,6 @@ CREATE TABLE order_info (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='订单表（模拟）';
 
 INSERT INTO order_info (order_no, user_id, merchant_id, sku_id, sku_name, num, amount, status, pay_status) VALUES
-('ORD20250920001', 5, 2, 1001, '无线蓝牙耳机', 1, 199.00, 3, 1),
-('ORD20250920002', 5, 2, 1002, '机械键盘',     1, 399.00, 2, 1),
-('ORD20250920003', 5, 2, 1003, 'USB-C 扩展坞', 1, 129.00, 1, 1);
+('ORD20250920001', 5, 2, 1001, 'Wireless_Earbuds',    1, 199.00, 3, 1),
+('ORD20250920002', 5, 2, 1002, 'Mechanical_Keyboard', 1, 399.00, 2, 1),
+('ORD20250920003', 5, 2, 1003, 'USB_C_Dock',          1, 129.00, 1, 1);

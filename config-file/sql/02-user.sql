@@ -4,7 +4,7 @@ USE aftersale;
 -- portal 用户中心表（sys_*）
 -- 角色见 RoleEnum：USER / MERCHANT / ADMIN / WAREHOUSE
 -- 一人可多角色，关系表 sys_user_role；sys_user.role 存主角色（列表第一项）
--- 演示账号密码均为 123456（BCrypt）
+-- seed accounts password: 123456 (BCrypt); usernames ASCII only
 -- ---------------------------------------------------------------------------
 
 DROP TABLE IF EXISTS sys_operate_log;
@@ -82,27 +82,21 @@ CREATE TABLE sys_operate_log (
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='接口操作日志';
 
--- 部门树
--- 总公司
---   ├── 运营中心
---   │     ├── 商家组
---   │     └── 客服组
---   └── 仓储中心
---         └── 质检组
+-- dept tree: HQ -> Ops/{Merchant_Team,CS_Team}, Warehouse_Center/QC_Team
 INSERT INTO sys_dept (id, name, parent_id, level) VALUES
-(1, '总公司',   0, 1),
-(2, '运营中心', 1, 2),
-(3, '商家组',   2, 3),
-(4, '客服组',   2, 3),
-(5, '仓储中心', 1, 2),
-(6, '质检组',   5, 3);
+(1, 'HQ',               0, 1),
+(2, 'Ops',              1, 2),
+(3, 'Merchant_Team',    2, 3),
+(4, 'CS_Team',          2, 3),
+(5, 'Warehouse_Center', 1, 2),
+(6, 'QC_Team',          5, 3);
 
--- 密码 123456
+-- password for all seed users: 123456 (BCrypt)
 INSERT INTO sys_user (id, username, password, role, dept_id) VALUES
-(1, '00000',     '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'ADMIN',     1),
-(2, 'AAA代购',  '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'MERCHANT',  3),
-(3, 'AAA极速发货', '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'WAREHOUSE', 5),
-(5, '精神状态良好',      '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'USER',      4);
+(1, 'admin',     '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'ADMIN',     1),
+(2, 'merchant',  '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'MERCHANT',  3),
+(3, 'warehouse', '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'WAREHOUSE', 5),
+(5, 'user',      '$2y$10$HPWRYMOoURtYco13RZCb0OOic51AlX2JzOEs/ZKOlskh1cb8PKL2G', 'USER',      4);
 
 INSERT INTO sys_user_role (user_id, role) VALUES
 (1, 'ADMIN'),
@@ -111,6 +105,6 @@ INSERT INTO sys_user_role (user_id, role) VALUES
 (5, 'USER');
 
 INSERT INTO sys_notify (user_id, title, content, channel, biz_type, read_flag) VALUES
-(5, '欢迎使用售后平台', '售后进度将以站内信通知，请留意本列表。', 'INBOX', 'SYSTEM', 0),
-(5, '演示：审核通过', '您的售后单 AS202609200001 商家已同意，请按指引寄回。', 'INBOX', 'AFTERSALE', 0);
+(5, 'Welcome', 'Aftersale updates will appear in this inbox.', 'INBOX', 'SYSTEM', 0),
+(5, 'Sample_Approved', 'Ticket AS202609200001 was approved. Please ship the item back.', 'INBOX', 'AFTERSALE', 0);
 

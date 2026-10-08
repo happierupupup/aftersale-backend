@@ -136,20 +136,16 @@ public class ProcessEngineService {
     @Transactional(rollbackFor = Exception.class)
     public ProcessInstanceVO withdraw(ProcessActionDTO dto) {
         ProcessBiz biz = requireRunning(dto.getBusinessKey());
-        Task task = requireCurrentTask(biz.getProcessInstanceId());
-        // 用户撤销：审核中或待仓库发货（发货前）可取消流程实例
-        String taskKey = task.getTaskDefinitionKey();
-        if (!ProcessTaskKeys.MERCHANT_APPROVE.equals(taskKey)
-                && !ProcessTaskKeys.WAREHOUSE_SHIP.equals(taskKey)) {
-            throw new BizException(ErrorEnum.PROCESS_TASK_MISMATCH.getCode(),
-                    "仅待审核或待仓库发货可撤销");
-        }
+        // 可撤销范围由 trade 按售后单状态判定（待审核 / 待仓库发货）。
+        // 此处不再卡 Activiti 当前节点：发货本地失败且补偿未成功时，可能出现
+        // 单据仍为待发货、流程已到 userReceive 的短暂不一致，仍应允许撤回并结束流程。
         boolean admin = RoleEnum.ADMIN.name().equalsIgnoreCase(dto.getRole());
         boolean applicant = dto.getUserId() != null && dto.getUserId().equals(biz.getApplicantUserId());
         if (!admin && !applicant) {
             throw new BizException(ErrorEnum.PROCESS_ROLE_DENIED);
         }
-        String from = taskKey;
+        Task task = currentTaskEntity(biz.getProcessInstanceId());
+        String from = task != null ? task.getTaskDefinitionKey() : biz.getCurrentTaskKey();
         runtimeService.deleteProcessInstance(biz.getProcessInstanceId(), "CANCELED");
         biz.setBizStatus(ProcessBizStatus.CANCELED.name());
         biz.setCurrentTaskKey(null);

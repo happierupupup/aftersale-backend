@@ -54,9 +54,9 @@ CREATE TABLE stock_flow (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='库存流水';
 
 INSERT INTO stock_sku (sku_id, sku_name, merchant_id, warn_threshold) VALUES
-(1001, '无线蓝牙耳机', 2, 20),
-(1002, '机械键盘',     2, 10),
-(1003, 'USB-C 扩展坞',  2,  5);
+(1001, 'Wireless_Earbuds',      2, 20),
+(1002, 'Mechanical_Keyboard',   2, 10),
+(1003, 'USB_C_Dock',            2,  5);
 
 INSERT INTO stock_count (sku_id, stock_num, version) VALUES
 (1001, 500, 0),

@@ -487,7 +487,7 @@ public class TicketServiceImpl implements TicketService {
             refundDetail.setAmount(row.getAmount());
         }
         if (!StringUtils.hasText(refundDetail.getChannel())) {
-            refundDetail.setChannel("原路退回");
+            refundDetail.setChannel("ORIGINAL");
         }
         return refundDetail;
     }

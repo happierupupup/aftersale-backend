@@ -191,28 +191,28 @@ cmd /c "`"$MYSQL`" -uroot --default-character-set=utf8mb4 aftersale -e `"SELECT 
 Remove-Item Env:MYSQL_PWD
 ```
 
-核对时若终端显示乱码，用 `HEX(username)` 看是否为 UTF-8（如 `AAA代购` → `414141E4BBA3E8B4AD`），不要只看控制台问号。
+种子数据用户名 / SKU 名仅用字母、数字、下划线，避免客户端 charset 把中文导成乱码。
 
 | 脚本 | 内容 |
 |------|------|
 | `01` | 建库：`aftersale`（唯一库） |
-| `02` | 用户中心 `sys_*` + 演示账号 |
+| `02` | 用户中心 `sys_*` + 种子账号 |
 | `03` | SKU 档案 + 库存计数 / 流水 `stock_*`（含 `merchant_id`） |
 | `03b` | 已有库增量：`stock_sku.merchant_id` |
 | `04` | 售后单 `aftersale_ticket` + 操作日志 + outbox |
 | `05` | 模拟订单 `order_info` |
 | `06` | 流程投影 `process_biz` / `process_oper_log`（`act_*` 由引擎自动建） |
 
-演示账号（密码均为 `123456`）：
+种子账号（密码均为 `123456`）：
 
 | 用户名 | 角色 | id |
 |--------|------|-----|
-| `00000` | ADMIN | 1 |
-| `AAA代购` | MERCHANT | 2 |
-| `AAA极速发货` | WAREHOUSE | 3 |
-| `精神状态良好` | USER | 5 |
+| `admin` | ADMIN | 1 |
+| `merchant` | MERCHANT | 2 |
+| `warehouse` | WAREHOUSE | 3 |
+| `user` | USER | 5 |
 
-演示订单挂在用户 id=5、商家 id=2（见 `05-order.sql`）。表结构变更后若本地已有旧库，需重导或按 `docs/problem.md` / 历史迁移说明处理。
+种子订单挂在用户 id=5、商家 id=2（见 `05-order.sql`）。表结构变更后若本地已有旧库，需重导或按 `docs/problem.md` / 历史迁移说明处理。
 
 ### 2. Redis（二选一）
 
@@ -310,7 +310,7 @@ Refresh 为 **HttpOnly + SameSite +（生产 Secure）Cookie**（`path=/api/auth
 # 登录（Access 在 JSON；Refresh 写入 Cookie，用 -c 保存）
 curl -c /tmp/as_cookies.txt -X POST http://127.0.0.1:8080/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"username":"00000","password":"123456"}'
+  -d '{"username":"admin","password":"123456"}'
 
 # 续期（带上 Refresh Cookie；旧 Refresh 拉黑，响应 Set-Cookie 新 Refresh）
 curl -b /tmp/as_cookies.txt -c /tmp/as_cookies.txt \
@@ -324,7 +324,7 @@ curl http://127.0.0.1:8080/user/list \
 curl -X POST http://127.0.0.1:8080/order \
   -H 'Authorization: Bearer <token>' \
   -H 'Content-Type: application/json' \
-  -d '{"skuId":1001,"skuName":"无线蓝牙耳机","num":1,"amount":199.00,"userId":5}'
+  -d '{"skuId":1001,"skuName":"Wireless_Earbuds","num":1,"amount":199.00,"userId":5}'
 
 # CSV 批量导入（orderNo 可空自动生成；压测样例见 docs/bench/orders_2000.csv）
 curl -X POST http://127.0.0.1:8080/order/upload \
@@ -341,41 +341,41 @@ curl -X POST http://127.0.0.1:8080/stock/deduct \
 # 售后草稿：保存（部分字段可空；本地直连示例）
 curl -X POST http://127.0.0.1:8082/aftersale/draft \
   -H 'Content-Type: application/json' \
-  -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"先存着","userId":5,"username":"精神状态良好","role":"USER"}'
+  -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"draft_save","userId":5,"username":"user","role":"USER"}'
 
 # 加载草稿（回填）
 curl 'http://127.0.0.1:8082/aftersale/draft?orderNo=ORD20250920001&skuId=1001' \
-  -H 'X-User-Id: 5' -H 'X-Username: 精神状态良好' -H 'X-Role: USER'
+  -H 'X-User-Id: 5' -H 'X-Username: user' -H 'X-Role: USER'
 
 # 提交正式单（会先删同单草稿再新增；经网关则用 USER token）
 # type=1 退货 / 3 仅退款；type=2 换货须带 exchangeSkuId
 curl -X POST http://127.0.0.1:8082/aftersale/apply \
   -H 'Content-Type: application/json' \
-  -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'
+  -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"quality","userId":5,"username":"user","role":"USER"}'
 
 # 列表默认不含草稿
 curl 'http://127.0.0.1:8082/aftersale/page?page=1&size=10' \
-  -H 'X-User-Id: 5' -H 'X-Username: 精神状态良好' -H 'X-Role: USER'
+  -H 'X-User-Id: 5' -H 'X-Username: user' -H 'X-Role: USER'
 
 # 商家审核通过（退货/换货会进仓库；仅退款 type=3 则下一节点是退款）
 curl -X POST http://127.0.0.1:8082/aftersale/approve \
   -H 'Content-Type: application/json' \
-  -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
+  -d '{"aftersaleNo":"AS...","userId":2,"username":"merchant","role":"MERCHANT"}'
 # 商家驳回（流程结束，status=已驳回；可写 remark）
 # curl -X POST http://127.0.0.1:8082/aftersale/reject \
 #   -H 'Content-Type: application/json' \
-#   -d '{"aftersaleNo":"AS...","remark":"不符合退货条件","userId":2,"username":"AAA代购","role":"MERCHANT"}'
+#   -d '{"aftersaleNo":"AS...","remark":"reject_reason","userId":2,"username":"merchant","role":"MERCHANT"}'
 
 # 退货/换货：仓库发货 → 用户收货 →（退货再）商家退款
 curl -X POST http://127.0.0.1:8082/aftersale/ship \
   -H 'Content-Type: application/json' \
-  -d '{"aftersaleNo":"AS...","logisticsInfo":{"company":"顺丰","trackingNo":"SF001"},"userId":3,"username":"AAA极速发货","role":"WAREHOUSE"}'
+  -d '{"aftersaleNo":"AS...","logisticsInfo":{"company":"SF","trackingNo":"SF001"},"userId":3,"username":"warehouse","role":"WAREHOUSE"}'
 curl -X POST http://127.0.0.1:8082/aftersale/receive \
   -H 'Content-Type: application/json' \
-  -d '{"aftersaleNo":"AS...","userId":5,"username":"精神状态良好","role":"USER"}'
+  -d '{"aftersaleNo":"AS...","userId":5,"username":"user","role":"USER"}'
 curl -X POST http://127.0.0.1:8082/aftersale/refund \
   -H 'Content-Type: application/json' \
-  -d '{"aftersaleNo":"AS...","userId":2,"username":"AAA代购","role":"MERCHANT"}'
+  -d '{"aftersaleNo":"AS...","userId":2,"username":"merchant","role":"MERCHANT"}'
 
 # 站内信（MQ 正常且已 apply 后，商家 userId=2 应有待审通知）
 curl 'http://127.0.0.1:8081/notify/list?userId=2&page=1&size=5'
@@ -425,7 +425,7 @@ macOS 若已用 brew / 本机二进制起 Redis、MQ，**不要再**对同端口
 for i in $(seq 1 20); do
   curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1:8080/api/auth/login \
     -H 'Content-Type: application/json' \
-    -d '{"username":"00000","password":"123456"}'
+    -d '{"username":"admin","password":"123456"}'
 done
 ```
 
