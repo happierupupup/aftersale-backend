@@ -248,7 +248,7 @@ public class TicketServiceImpl implements TicketService {
         Operator system = new Operator(0L, "SYSTEM", RoleEnum.ADMIN.name());
         return redisBizLock.execute(LOCK_PREFIX, aftersaleNo, () -> {
             Ticket row = requireAftersale(aftersaleNo);
-            assertNotTerminal(row);
+            assertTicketMutable(row);
             int status = row.getStatus() == null ? -1 : row.getStatus();
             if (status != TicketStatus.PENDING.getCode()
                     && status != TicketStatus.WAIT_SHIP.getCode()
@@ -299,7 +299,7 @@ public class TicketServiceImpl implements TicketService {
 
     private TicketVO doOperateWithProcess(TicketActionDTO dto, Operator operator, TicketAction action) {
         Ticket row = requireAftersale(dto.getAftersaleNo());
-        assertNotTerminal(row);
+        assertTicketMutable(row);
         assertBusinessPermission(row, operator, action);
         int before = row.getStatus() == null ? -1 : row.getStatus();
 
@@ -432,12 +432,10 @@ public class TicketServiceImpl implements TicketService {
         }
     }
 
-    private static void assertNotTerminal(Ticket row) {
-        int status = row.getStatus() == null ? -1 : row.getStatus();
-        if (status == TicketStatus.DONE.getCode()
-                || status == TicketStatus.REJECTED.getCode()
-                || status == TicketStatus.CANCELED.getCode()) {
-            throw new BizException(ErrorEnum.PROCESS_ENDED);
+    /** T2：DONE / REJECTED / CANCELED 统一只读（接口入口；流程侧另有终态守卫） */
+    private static void assertTicketMutable(Ticket row) {
+        if (TicketStatus.isTerminal(row.getStatus())) {
+            throw new BizException(ErrorEnum.PROCESS_ENDED.getCode(), "售后单已终态，禁止修改");
         }
     }
 
@@ -462,6 +460,10 @@ public class TicketServiceImpl implements TicketService {
                 }
                 break;
             case SHIP:
+                if (!isWarehouse(operator)) {
+                    throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+                }
+                break;
             case ROLLBACK:
                 break;
             default:
@@ -518,30 +520,47 @@ public class TicketServiceImpl implements TicketService {
         }
     }
 
+    /**
+     * T1 列表数据权限：强制覆盖查询条件，禁止客户端用 userId/merchantId 越权扩大范围。
+     * USER→本人；MERCHANT→本商家；WAREHOUSE/ADMIN→不强制归属（仓库可看待发货池）；未知角色拒绝。
+     */
     private void applyRoleFilter(TicketQueryDTO cond, Operator operator) {
-        if (operator == null || operator.getUserId() == null) {
+        requireUserId(operator);
+        if (isAdmin(operator) || isWarehouse(operator)) {
             return;
         }
         if (RoleEnum.USER.name().equalsIgnoreCase(operator.getRole())) {
             cond.setUserId(operator.getUserId());
-        } else if (RoleEnum.MERCHANT.name().equalsIgnoreCase(operator.getRole())) {
-            cond.setMerchantId(operator.getUserId());
-        }
-    }
-
-    private void assertCanView(Ticket row, Operator operator) {
-        if (operator == null || operator.getUserId() == null || isAdmin(operator)
-                || isWarehouse(operator)) {
+            cond.setMerchantId(null);
             return;
         }
-        if (RoleEnum.USER.name().equalsIgnoreCase(operator.getRole())
-                && !row.getUserId().equals(operator.getUserId())) {
-            throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+        if (RoleEnum.MERCHANT.name().equalsIgnoreCase(operator.getRole())) {
+            cond.setMerchantId(operator.getUserId());
+            cond.setUserId(null);
+            return;
         }
-        if (RoleEnum.MERCHANT.name().equalsIgnoreCase(operator.getRole())
-                && !row.getMerchantId().equals(operator.getUserId())) {
-            throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+        throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+    }
+
+    /** T1 详情数据权限：缺省拒绝；与列表规则一致 */
+    private void assertCanView(Ticket row, Operator operator) {
+        requireUserId(operator);
+        if (isAdmin(operator) || isWarehouse(operator)) {
+            return;
         }
+        if (RoleEnum.USER.name().equalsIgnoreCase(operator.getRole())) {
+            if (!row.getUserId().equals(operator.getUserId())) {
+                throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+            }
+            return;
+        }
+        if (RoleEnum.MERCHANT.name().equalsIgnoreCase(operator.getRole())) {
+            if (!row.getMerchantId().equals(operator.getUserId())) {
+                throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+            }
+            return;
+        }
+        throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
     }
 
     private OrderVO requireOrder(String orderNo) {

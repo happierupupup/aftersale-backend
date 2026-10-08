@@ -51,7 +51,8 @@ public class TicketController {
         return R.ok(ticketService.apply(dto, operator));
     }
 
-    @Operation(summary = "售后分页列表。page/size 默认 1/10，size 上限 50")
+    @Operation(summary = "售后分页列表。page/size 默认 1/10，size 上限 50；"
+            + "USER 仅本人、MERCHANT 仅本商家、WAREHOUSE/ADMIN 不限归属")
     @GetMapping("/page")
     public R<PageResult<TicketVO>> page(TicketQueryDTO query,
                                         @RequestHeader(value = "X-User-Id", required = false) String headerUserId,
@@ -61,7 +62,7 @@ public class TicketController {
         return R.ok(ticketService.page(query, operator));
     }
 
-    @Operation(summary = "售后详情 + 操作日志")
+    @Operation(summary = "售后详情 + 操作日志（数据权限同列表；终态可查不可改）")
     @GetMapping("/{aftersaleNo}")
     public R<TicketVO> detail(@PathVariable String aftersaleNo,
                               @RequestHeader(value = "X-User-Id", required = false) String headerUserId,

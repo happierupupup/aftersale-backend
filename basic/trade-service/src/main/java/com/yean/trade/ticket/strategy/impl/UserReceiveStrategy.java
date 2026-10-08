@@ -29,7 +29,7 @@ public class UserReceiveStrategy implements TicketNodeStrategy {
     }
 
     @Override
-    public void afterProcess(TicketNodeContext ctx) {
+    public void doAfterProcess(TicketNodeContext ctx) {
         Ticket row = ctx.getRow();
         TicketType type = TicketType.require(row.getType());
         if (type == TicketType.REFUND_ONLY) {

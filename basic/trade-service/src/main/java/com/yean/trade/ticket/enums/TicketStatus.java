@@ -31,4 +31,12 @@ public enum TicketStatus {
     public String getLabel() {
         return label;
     }
+
+    /** 办结 / 驳回 / 撤回：只读，禁止再改状态、物流、退款、库存联动 */
+    public static boolean isTerminal(Integer status) {
+        if (status == null) {
+            return false;
+        }
+        return status == DONE.code || status == REJECTED.code || status == CANCELED.code;
+    }
 }

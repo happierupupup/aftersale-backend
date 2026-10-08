@@ -27,7 +27,7 @@ public class WarehouseShipStrategy implements TicketNodeStrategy {
     }
 
     @Override
-    public void afterProcess(TicketNodeContext ctx) {
+    public void doAfterProcess(TicketNodeContext ctx) {
         Ticket row = ctx.getRow();
         if (TicketType.require(row.getType()) != TicketType.EXCHANGE) {
             return;
