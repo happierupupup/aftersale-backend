@@ -5,4 +5,5 @@ com.yean.common.config.RedisBizLockAutoConfiguration,\
 com.yean.common.config.TxAutoConfiguration,\
 com.yean.common.config.OperatorAutoConfiguration,\
 com.yean.common.config.OperateLogAspectAutoConfiguration,\
-com.yean.common.config.MybatisPlusAutoConfiguration
+com.yean.common.config.MybatisPlusAutoConfiguration,\
+com.yean.common.config.TraceIdAutoConfiguration

@@ -109,7 +109,7 @@ IdeaProjects/
 - **多实例安全**：定时催办/超时关单/outbox 扫表用 Redisson `tryLock`；申请与审核操作 Redis SET NX 防重。
 - **定时任务**：outbox 每 5s 扫表投递；催办每天 10:00；超时关单每天 2:30（创建超 48h 未处理则关单）。
 - **旁路小线程池**：`@OperateLog` 固定池异步落库，不挡主链路；SKU 延迟双删用单线程 `ScheduledExecutor`（订单 CSV 批量仍同步，线程池对照未上）。
-- **可观测（业务维）**：`sys_operate_log` / `aftersale_oper_log` / `process_oper_log`，按单号与操作人追查；全链路 TraceId 尚未接。
+- **可观测**：业务维 `sys_operate_log` / `aftersale_oper_log` / `process_oper_log`；链路维 **`X-Trace-Id`**（gateway 生成或透传 → Feign/WebClient 下游；日志 MDC `%X{traceId}`）。
 
 ## 接口前缀（经 gateway，也可直连服务端口）
 

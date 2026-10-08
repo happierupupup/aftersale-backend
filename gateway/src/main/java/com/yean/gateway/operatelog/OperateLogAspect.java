@@ -2,6 +2,8 @@ package com.yean.gateway.operatelog;
 
 import com.yean.common.dto.operatelog.OperateLogCreateDTO;
 import com.yean.common.rpc.OperateLogFeignClient;
+import com.yean.common.trace.TraceConstants;
+import com.yean.common.trace.TraceIds;
 import com.yean.gateway.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,23 +48,29 @@ public class OperateLogAspect implements GlobalFilter, Ordered {
         long start = System.currentTimeMillis();
         String path = request.getPath().value();
         String method = request.getMethodValue();
+        String traceId = request.getHeaders().getFirst(TraceConstants.HEADER);
         Long userId = parseLong(request.getHeaders().getFirst(JwtService.HEADER_USER_ID));
         String username = request.getHeaders().getFirst(JwtService.HEADER_USERNAME);
         String role = request.getHeaders().getFirst(JwtService.HEADER_ROLE);
 
         return chain.filter(exchange).doOnSuccess(v ->
-                submit(build(path, method, userId, username, role, true, start, null))
+                submit(traceId, build(path, method, userId, username, role, true, start, null))
         ).doOnError(err ->
-                submit(build(path, method, userId, username, role, false, start, err.getMessage()))
+                submit(traceId, build(path, method, userId, username, role, false, start, err.getMessage()))
         );
     }
 
-    private void submit(OperateLogCreateDTO dto) {
+    private void submit(String traceId, OperateLogCreateDTO dto) {
         FutureTask<Void> task = new FutureTask<>(() -> {
+            if (traceId != null && !traceId.isBlank()) {
+                TraceIds.put(traceId);
+            }
             try {
                 operateLogFeignClient.create(dto);
             } catch (Exception e) {
                 log.warn("gateway async operate log failed, path={}, err={}", dto.getPath(), e.getMessage());
+            } finally {
+                TraceIds.clear();
             }
             return null;
         });

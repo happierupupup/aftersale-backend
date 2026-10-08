@@ -3,6 +3,7 @@ package com.yean.common.config;
 import com.yean.common.dto.operatelog.OperateLogCreateDTO;
 import com.yean.common.rpc.OperateLog;
 import com.yean.common.rpc.OperateLogFeignClient;
+import com.yean.common.trace.TraceIds;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -75,7 +76,7 @@ public class OperateLogAspectAutoConfiguration {
             if (client == null || dto == null) {
                 return;
             }
-            FutureTask<Void> task = new FutureTask<>(() -> {
+            FutureTask<Void> task = new FutureTask<>(TraceIds.wrap(() -> {
                 try {
                     client.create(dto);
                 } catch (Exception e) {
@@ -83,7 +84,7 @@ public class OperateLogAspectAutoConfiguration {
                             dto.getModule(), dto.getAction(), e.getMessage());
                 }
                 return null;
-            });
+            }));
             EXECUTOR.execute(task);
         }
 
