@@ -28,6 +28,9 @@ public interface ProcessFeignClient {
     @PostMapping("/process/reject")
     R<ProcessInstanceVO> reject(@Valid @RequestBody ProcessActionDTO dto);
 
+    @PostMapping("/process/timeout-close")
+    R<ProcessInstanceVO> timeoutClose(@Valid @RequestBody ProcessActionDTO dto);
+
     @PostMapping("/process/withdraw")
     R<ProcessInstanceVO> withdraw(@Valid @RequestBody ProcessActionDTO dto);
 

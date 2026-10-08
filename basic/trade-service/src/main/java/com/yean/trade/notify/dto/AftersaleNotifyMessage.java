@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * 售后节点流转通知消息（Topic=aftersale_notify）。
- * 阶段 8 基础版：业务成功后直接发 MQ，尚未走 local_message outbox。
+ * payload 写入 local_message，由 Sender 投递 MQ。
  */
 @Data
 public class AftersaleNotifyMessage {

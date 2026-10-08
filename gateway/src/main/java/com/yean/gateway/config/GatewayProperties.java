@@ -23,5 +23,23 @@ public class GatewayProperties {
     @Data
     public static class Auth {
         private List<String> whitelist = new ArrayList<>();
+        /** 路径级角色 ACL；未命中规则默认放行，命中则角色须在列表中（ADMIN 恒通） */
+        private Acl acl = new Acl();
+    }
+
+    @Data
+    public static class Acl {
+        private boolean enabled = true;
+        private List<AclRule> rules = new ArrayList<>();
+    }
+
+    @Data
+    public static class AclRule {
+        /** Ant 路径，如 /stock/deduct、/aftersale/** */
+        private String path;
+        /** 空 = 所有 HTTP 方法 */
+        private List<String> methods = new ArrayList<>();
+        /** 允许的角色；ADMIN 在 Filter 内额外放行 */
+        private List<String> roles = new ArrayList<>();
     }
 }

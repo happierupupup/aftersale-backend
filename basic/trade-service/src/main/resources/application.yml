@@ -37,7 +37,7 @@ mybatis-plus:
 sku:
   cache-ttl-seconds: 300
 
-# RocketMQ：节点流转后直发售后通知（阶段 8 基础版，尚未 outbox）
+# RocketMQ：outbox Sender 投递售后通知（阶段 8b）
 rocketmq:
   name-server: 127.0.0.1:9876
   producer:
@@ -62,6 +62,19 @@ yean:
       cron: "0 0 10 * * ?"
       scan-limit: 1000
       preview-limit: 5
+    local-message:
+      enabled: true
+      # 每 5 秒扫 NEW
+      cron: "0/5 * * * * ?"
+      scan-limit: 100
+      max-retry: 16
+      retry-base-seconds: 5
+    timeout-close:
+      enabled: true
+      # 每天 2:30（Asia/Shanghai）：产生超过 48h 未办结则自动关闭
+      cron: "0 30 2 * * ?"
+      timeout-hours: 48
+      scan-limit: 200
 
 springdoc:
   swagger-ui:
