@@ -104,10 +104,10 @@ IdeaProjects/
 - **双 JWT + Redis 黑名单**：短 Access（Bearer）+ 长 Refresh（HttpOnly Cookie）；续期轮换拉黑旧 `jti`；下游只认 `X-User-*`，多网关共享登录态。
 - **流程独立 + 节点策略**：Activiti 仅 `process-service`；trade Feign 推节点后走 `TicketNodeStrategy`（发货扣新 SKU、收货回旧品等），BPMN 定路径、策略定副作用。
 - **草稿与进行中槽位**：同表草稿 `status=-1`、`active_flag=NULL`、不启流程；**提交先删草稿再新增正式单**；进行中 `(order_no, sku_id, active_flag)` 唯一，驳回/撤回释槽可再申请。
-- **跨服务最终一致**：主状态同步（流程 RPC + 本地事务）；站内信走 outbox（`local_message`）→ RocketMQ → 幂等消费；流程失败有补偿删单/回退。
+- **跨服务最终一致**：主状态同步（流程 RPC + 本地事务）；站内信走 outbox（`local_message`）→ RocketMQ → 幂等消费；流程已推进而本地失败时写 `process_compensate` 扫表重试 rollback（防长期半成功）。
 - **库存三件套**：Redisson 锁串行入口 + DB `version` CAS 防超卖 + `stock_flow` 唯一键幂等；SKU Cache Aside，写后**延迟双删**。
 - **多实例安全**：定时催办/超时关单/outbox 扫表用 Redisson `tryLock`；申请与审核操作 Redis SET NX 防重。
-- **定时任务**：outbox 每 5s 扫表投递；催办每天 10:00；超时关单每天 2:30（创建超 48h 未处理则关单）。
+- **定时任务**：outbox 每 5s 扫表投递；流程补偿每 10s 扫 `process_compensate`；催办每天 10:00；超时关单每天 2:30（创建超 48h 未处理则关单）。
 - **旁路小线程池**：`@OperateLog` 固定池异步落库，不挡主链路；SKU 延迟双删用单线程 `ScheduledExecutor`（订单 CSV 批量仍同步，线程池对照未上）。
 - **可观测**：业务维 `sys_operate_log` / `aftersale_oper_log` / `process_oper_log`；链路维 **`X-Trace-Id`**（gateway 生成或透传 → Feign/WebClient 下游；日志 MDC `%X{traceId}`）。
 

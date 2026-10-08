@@ -82,6 +82,13 @@ yean:
       cron: "0 30 2 * * ?"
       timeout-hours: 48
       scan-limit: 200
+    process-compensate:
+      enabled: true
+      # 每 10 秒扫 NEW：流程已推进、本地失败后的 rollback 重试
+      cron: "0/10 * * * * ?"
+      scan-limit: 50
+      max-retry: 32
+      retry-base-seconds: 5
 
 springdoc:
   swagger-ui:

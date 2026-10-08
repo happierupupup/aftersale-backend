@@ -29,6 +29,7 @@ import com.yean.trade.ticket.dto.TicketLogVO;
 import com.yean.trade.ticket.dto.TicketOperLog;
 import com.yean.trade.ticket.dto.TicketQueryDTO;
 import com.yean.trade.ticket.dto.TicketVO;
+import com.yean.trade.ticket.compensate.ProcessCompensateService;
 import com.yean.trade.ticket.enums.TicketAction;
 import com.yean.trade.ticket.enums.TicketStatus;
 import com.yean.trade.ticket.enums.TicketType;
@@ -71,6 +72,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketMapper ticketMapper;
     private final TicketOperLogMapper ticketOperLogMapper;
     private final AftersaleNotifyPublisher aftersaleNotifyPublisher;
+    private final ProcessCompensateService processCompensateService;
     private final RedisBizLock redisBizLock;
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
@@ -435,8 +437,8 @@ public class TicketServiceImpl implements TicketService {
             });
         } catch (RuntimeException e) {
             if (processAdvanced) {
-                // G3：换货发货 process 已到待收货，库存不足 → ADMIN 回退到 warehouseShip
-                safeCompensateProcess(row.getAftersaleNo(), e);
+                // G3：换货发货 process 已到下一节点，库存不足 → 补偿回 expected 节点（失败入扫表）
+                safeCompensateProcess(row.getAftersaleNo(), expectedTaskKey(action), e);
             }
             throw e;
         }
@@ -462,20 +464,16 @@ public class TicketServiceImpl implements TicketService {
                 && action != TicketAction.ROLLBACK;
     }
 
-    /** 流程已 complete 后本地失败：以 ADMIN 回退到上一节点，与售后本地状态对齐 */
-    private void safeCompensateProcess(String aftersaleNo, Exception cause) {
-        try {
-            ProcessActionDTO compensate = new ProcessActionDTO();
-            compensate.setBusinessKey(aftersaleNo);
-            compensate.setOperator("system");
-            compensate.setRole(RoleEnum.ADMIN.name());
-            compensate.setRemark("本地事务失败，补偿回滚流程");
-            R.unwrap(processFeignClient.rollback(compensate));
-            log.warn("process compensated after local failure, aftersaleNo={}", aftersaleNo, cause);
-        } catch (Exception compensateEx) {
-            log.error("process compensate FAILED, aftersaleNo={}, original={}",
-                    aftersaleNo, cause.toString(), compensateEx);
+    /**
+     * 流程已 complete 后本地失败：入补偿表并立即尝试 rollback；
+     * 即时失败由 {@link ProcessCompensateService} 扫表重试，避免长期半成功。
+     */
+    private void safeCompensateProcess(String aftersaleNo, String expectedTaskKey, Exception cause) {
+        if (!StringUtils.hasText(expectedTaskKey)) {
+            log.error("process compensate missing expectedTaskKey, aftersaleNo={}", aftersaleNo, cause);
+            return;
         }
+        processCompensateService.enqueueAndTry(aftersaleNo, expectedTaskKey, cause);
     }
 
     private static RefundDetail buildRefundDetail(TicketAction action, TicketActionDTO dto, Ticket row) {

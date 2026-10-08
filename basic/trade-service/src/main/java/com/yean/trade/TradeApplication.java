@@ -6,6 +6,7 @@ import com.yean.common.rpc.ProcessFeignClient;
 import com.yean.trade.config.SkuCacheProperties;
 import com.yean.trade.message.config.LocalMessageProperties;
 import com.yean.trade.notify.config.NotifyProperties;
+import com.yean.trade.ticket.compensate.ProcessCompensateProperties;
 import com.yean.trade.ticket.job.PendingRemindProperties;
 import com.yean.trade.ticket.job.TimeoutCloseProperties;
 import org.springframework.boot.SpringApplication;
@@ -25,7 +26,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
         NotifyProperties.class,
         PendingRemindProperties.class,
         LocalMessageProperties.class,
-        TimeoutCloseProperties.class
+        TimeoutCloseProperties.class,
+        ProcessCompensateProperties.class
 })
 @EnableDiscoveryClient
 @SpringBootApplication
