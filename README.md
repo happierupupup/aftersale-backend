@@ -1,6 +1,6 @@
 # aftersale-backend
 
-Spring Cloud 电商**售后退换货** Demo：网关鉴权 + 用户中心 + 交易业务（订单 / 售后 / SKU 库存）+ Activiti 流程引擎。
+Spring Cloud 电商**售后退换货**后端：网关鉴权 + 用户中心 + 交易业务（订单 / 售后 / SKU 库存）+ Activiti 流程引擎。
 
 技术栈：Spring Boot 2.7、Spring Cloud Gateway、OpenFeign、MyBatis-Plus、Redisson、Activiti 6、MySQL 8、Redis、RocketMQ 4.9（通知）。
 
@@ -90,7 +90,7 @@ IdeaProjects/
 ## 能力概览
 
 - **portal**：用户部门 CRUD、多角色、登录校验（不签发 Token）、站内通知、操作日志落库
-- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、**路径级角色 ACL**、**Sentinel 限流**、注入 `X-User-*`
+- **gateway**：双 JWT（短 Access + HttpOnly Refresh Cookie；续期轮换拉黑旧 Refresh）、Redis 黑名单登出、白名单、**路径级角色 ACL**、**Sentinel 限流**、注入 `X-User-*`
 - **trade / order**：列表、详情、单笔新增、CSV 批量上传
 - **trade / ticket**：草稿保存/加载/删除；`apply` 提交；Feign 驱动 Activiti；策略同步状态/库存；数据权限 + 终态只读
 - **process-service**：BPMN、候选组、终态守卫、`process_oper_log`、回退上一节点
@@ -99,11 +99,23 @@ IdeaProjects/
 - **统一返回**：`{code, msg, data}`，分页 `PageResult`，错误码 `ErrorEnum`
 - **前端**：登录按角色菜单；售后工作台左列表右详情；管理员用户管理；申请页保存/提交
 
+## 关键设计
+
+- **双 JWT + Redis 黑名单**：短 Access（Bearer）+ 长 Refresh（HttpOnly Cookie）；续期轮换拉黑旧 `jti`；下游只认 `X-User-*`，多网关共享登录态。
+- **流程独立 + 节点策略**：Activiti 仅 `process-service`；trade Feign 推节点后走 `TicketNodeStrategy`（发货扣新 SKU、收货回旧品等），BPMN 定路径、策略定副作用。
+- **草稿与进行中槽位**：同表草稿 `status=-1`、`active_flag=NULL`、不启流程；**提交先删草稿再新增正式单**；进行中 `(order_no, sku_id, active_flag)` 唯一，驳回/撤回释槽可再申请。
+- **跨服务最终一致**：主状态同步（流程 RPC + 本地事务）；站内信走 outbox（`local_message`）→ RocketMQ → 幂等消费；流程失败有补偿删单/回退。
+- **库存三件套**：Redisson 锁串行入口 + DB `version` CAS 防超卖 + `stock_flow` 唯一键幂等；SKU Cache Aside，写后**延迟双删**。
+- **多实例安全**：定时催办/超时关单/outbox 扫表用 Redisson `tryLock`；申请与审核操作 Redis SET NX 防重。
+- **定时任务**：outbox 每 5s 扫表投递；催办每天 10:00；超时关单每天 2:30（创建超 48h 未处理则关单）。
+- **旁路小线程池**：`@OperateLog` 固定池异步落库，不挡主链路；SKU 延迟双删用单线程 `ScheduledExecutor`（订单 CSV 批量仍同步，线程池对照未上）。
+- **可观测（业务维）**：`sys_operate_log` / `aftersale_oper_log` / `process_oper_log`，按单号与操作人追查；全链路 TraceId 尚未接。
+
 ## 接口前缀（经 gateway，也可直连服务端口）
 
 | 模块 | 路径 |
 |------|------|
-| 登录登出 | `/api/auth/**`（仅 gateway） |
+| 登录 / 续期 / 登出 | `/api/auth/login` · `/refresh` · `/logout`（仅 gateway；Refresh 走 Cookie） |
 | 用户 / 部门 / 通知 / 操作日志 | `/user/**` `/dept/**` `/notify/**` `/operatelog/**` → portal |
 | 订单 | `/order/**` → trade |
 | 售后 | `/aftersale/**` → trade（含 draft / apply / rollback / job） |
@@ -286,20 +298,27 @@ Swagger：
 - process：http://127.0.0.1:8083/swagger-ui.html
 - trade：http://127.0.0.1:8082/swagger-ui.html
 
-经网关访问业务接口需：`Authorization: Bearer <token>`。本地直连 trade 时可用 Header `X-User-Id` / `X-Username` / `X-Role`（`yean.operator.allow-body=true` 时也可用 body 调试字段）。
+经网关访问业务接口需：`Authorization: Bearer <access>`（Access 默认约 **30 分钟**）。
+Refresh 为 **HttpOnly + SameSite +（生产 Secure）Cookie**（`path=/api/auth`，默认约 **7 天**）；`POST /api/auth/refresh` 换新 Access 并**拉黑旧 Refresh**。
+
+本地直连 trade 时可用 Header `X-User-Id` / `X-Username` / `X-Role`（`yean.operator.allow-body=true` 时也可用 body 调试字段）。
 
 
 ### 5. 命令行示例
 
 ```bash
-# 登录
-curl -X POST http://127.0.0.1:8080/api/auth/login \
+# 登录（Access 在 JSON；Refresh 写入 Cookie，用 -c 保存）
+curl -c /tmp/as_cookies.txt -X POST http://127.0.0.1:8080/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"00000","password":"123456"}'
 
-# 用户列表（替换 token）
+# 续期（带上 Refresh Cookie；旧 Refresh 拉黑，响应 Set-Cookie 新 Refresh）
+curl -b /tmp/as_cookies.txt -c /tmp/as_cookies.txt \
+  -X POST http://127.0.0.1:8080/api/auth/refresh
+
+# 用户列表（替换 data.token）
 curl http://127.0.0.1:8080/user/list \
-  -H 'Authorization: Bearer <token>'
+  -H 'Authorization: Bearer <access>'
 
 # 新增订单
 curl -X POST http://127.0.0.1:8080/order \

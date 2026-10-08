@@ -16,10 +16,13 @@ public class LogoutHandler {
     private final AuthSupport authSupport;
 
     public Mono<ServerResponse> logout(ServerRequest request) {
-        return authSupport.requireUser(request)
-                .flatMap(user -> authSupport.addToBlacklist(user, request))
+        return Mono.when(
+                        authSupport.blacklistAccess(request),
+                        authSupport.blacklistRefresh(request)
+                )
                 .then(ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
+                        .cookie(authSupport.clearRefreshCookie())
                         .bodyValue(R.ok()));
     }
 }

@@ -49,7 +49,14 @@ gateway:
   portal-url: http://127.0.0.1:8081
   jwt:
     secret: yean-aftersale-gateway-jwt-hs256-secret-key
-    expire-seconds: 7200
+    # Access 短寿命（API 鉴权）；Refresh 长寿命（仅 Cookie 续期，续期时旧 Refresh 拉黑）
+    access-expire-seconds: 1800
+    refresh-expire-seconds: 604800
+    refresh-cookie-name: refresh_token
+    refresh-cookie-path: /api/auth
+    # 本地 HTTP 联调 false；上 HTTPS 后改为 true
+    refresh-cookie-secure: false
+    refresh-cookie-same-site: Lax
   auth:
     whitelist:
       - /api/auth/login

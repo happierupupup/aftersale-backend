@@ -17,7 +17,20 @@ public class GatewayProperties {
     @Data
     public static class Jwt {
         private String secret = "gateway:jwt:secret-key";
-        private long expireSeconds = 7200;
+        /** Access Token 秒数（短寿命，用于 API 鉴权） */
+        private long accessExpireSeconds = 1800;
+        /** Refresh Token 秒数（长寿命，仅用于续期） */
+        private long refreshExpireSeconds = 604800;
+        /** Refresh 的 Cookie 名 */
+        private String refreshCookieName = "refresh_token";
+        /** Cookie Path，仅打到认证相关路径 */
+        private String refreshCookiePath = "/api/auth";
+        /**
+         * Secure 标志。本地 HTTP 联调为 false；HTTPS 生产务必 true。
+         */
+        private boolean refreshCookieSecure = false;
+        /** SameSite：Lax / Strict / None（None 须 Secure=true） */
+        private String refreshCookieSameSite = "Lax";
     }
 
     @Data

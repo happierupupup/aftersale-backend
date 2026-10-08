@@ -30,14 +30,25 @@ public class LoginHandler {
                 .switchIfEmpty(Mono.error(new BizException(ErrorEnum.PARAM_INVALID)))
                 .doOnNext(this::validate)
                 .flatMap(portalAuthClient::authenticate)
-                .map(authSupport::issue)
-                .flatMap(vo -> json(R.ok(vo)));
+                .map(authSupport::issueBundle)
+                .flatMap(bundle -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .cookie(bundle.refreshCookie())
+                        .bodyValue(R.ok(bundle.access())));
     }
 
+    /**
+     * 用 HttpOnly Refresh Cookie 换新 Access，并轮换 Refresh（旧 Refresh jti 拉黑）。
+     */
     public Mono<ServerResponse> refresh(ServerRequest request) {
-        return authSupport.requireUser(request)
-                .flatMap(user -> authSupport.addToBlacklist(user, request).thenReturn(authSupport.issue(user)))
-                .flatMap(vo -> json(R.ok(vo)));
+        String oldRefresh = authSupport.readRefreshCookie(request.exchange());
+        return authSupport.requireRefreshUser(request)
+                .flatMap(user -> authSupport.blacklistRefreshToken(oldRefresh).thenReturn(user))
+                .map(authSupport::issueBundle)
+                .flatMap(bundle -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .cookie(bundle.refreshCookie())
+                        .bodyValue(R.ok(bundle.access())));
     }
 
     private void validate(LoginDTO dto) {
@@ -45,11 +56,5 @@ public class LoginHandler {
         if (!violations.isEmpty()) {
             throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), violations.iterator().next().getMessage());
         }
-    }
-
-    static Mono<ServerResponse> json(Object body) {
-        return ServerResponse.ok()
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(body);
     }
 }

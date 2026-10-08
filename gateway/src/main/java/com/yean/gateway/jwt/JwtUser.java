@@ -13,4 +13,6 @@ public class JwtUser {
     private String identityType;
     private Long deptId;
     private String jti;
+    /** access / refresh */
+    private String tokenType;
 }

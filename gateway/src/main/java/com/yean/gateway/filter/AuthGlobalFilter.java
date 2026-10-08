@@ -43,7 +43,7 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
         }
         JwtUser user;
         try {
-            user = jwtService.parse(token);
+            user = jwtService.parseAccess(token);
         } catch (BizException e) {
             return Mono.error(e);
         }
