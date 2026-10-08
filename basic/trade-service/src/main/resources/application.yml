@@ -11,6 +11,11 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/aftersale?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
+    # 对齐压测 VU=50；apply 持连接期间还会 Feign process / portal
+    hikari:
+      maximum-pool-size: 50
+      minimum-idle: 10
+      connection-timeout: 10000
   redis:
     host: 127.0.0.1
     port: 6379

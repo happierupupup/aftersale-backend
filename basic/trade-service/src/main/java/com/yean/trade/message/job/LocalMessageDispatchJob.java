@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 扫 local_message(NEW) 投递 RocketMQ（阶段 8b outbox）。
+ * 扫 local_message(NEW) 投递 RocketMQ。
  */
 @Slf4j
 @Component

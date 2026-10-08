@@ -38,6 +38,7 @@ import com.yean.trade.ticket.strategy.TicketNodeContext;
 import com.yean.trade.ticket.strategy.TicketNodeStrategy;
 import com.yean.trade.ticket.strategy.TicketNodeStrategyFactory;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -51,6 +52,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TicketServiceImpl implements TicketService {
@@ -301,26 +303,13 @@ public class TicketServiceImpl implements TicketService {
         assertBusinessPermission(row, operator, action);
         int before = row.getStatus() == null ? -1 : row.getStatus();
 
-        ProcessActionDTO processDto = buildProcessAction(dto, operator, action);
-        ProcessInstanceVO process;
-        switch (action) {
-            case REJECT:
-                process = R.unwrap(processFeignClient.reject(processDto));
-                break;
-            case WITHDRAW:
-                process = R.unwrap(processFeignClient.withdraw(processDto));
-                break;
-            case ROLLBACK:
-                process = R.unwrap(processFeignClient.rollback(processDto));
-                break;
-            default:
-                process = R.unwrap(processFeignClient.complete(processDto));
-                break;
-        }
-
         final LogisticsInfo logistics = action == TicketAction.SHIP ? dto.getLogisticsInfo() : null;
         final RefundDetail refundDetail = buildRefundDetail(action, dto, row);
         TicketNodeStrategy strategy = strategyFactory.getStrategy(action);
+
+        ProcessInstanceVO process = invokeProcess(dto, operator, action);
+        final boolean processAdvanced = actionCompletesProcessTask(action);
+
         TicketNodeContext ctx = TicketNodeContext.builder()
                 .row(row)
                 .dto(dto)
@@ -332,26 +321,69 @@ public class TicketServiceImpl implements TicketService {
                 .build();
         final int nextStatus = strategy.resolveNextStatus(ctx);
 
-        TicketVO vo = transactionTemplate.execute(status -> {
-            // 策略副作用（库存等）先于改状态；失败则本地事务回滚
-            strategy.afterProcess(ctx);
-            boolean release = releasesApplySlot(nextStatus);
-            ticketMapper.updateStatus(row.getId(), nextStatus, release, logistics, refundDetail);
-            if (release) {
-                stringRedisTemplate.delete(applyIdemKey(row.getOrderNo(), row.getSkuId()));
+        try {
+            return transactionTemplate.execute(status -> {
+                // 库存等副作用先于改状态；失败则本事务回滚，并由外层补偿流程节点
+                strategy.afterProcess(ctx);
+                boolean release = releasesApplySlot(nextStatus);
+                ticketMapper.updateStatus(row.getId(), nextStatus, release, logistics, refundDetail);
+                if (release) {
+                    stringRedisTemplate.delete(applyIdemKey(row.getOrderNo(), row.getSkuId()));
+                }
+                insertLog(row.getAftersaleNo(), operator, action, before, nextStatus, dto.getRemark());
+                row.setStatus(nextStatus);
+                if (logistics != null) {
+                    row.setLogisticsInfo(logistics);
+                }
+                if (refundDetail != null) {
+                    row.setRefundDetail(refundDetail);
+                }
+                aftersaleNotifyPublisher.publish(row, action);
+                return toVO(row, false);
+            });
+        } catch (RuntimeException e) {
+            if (processAdvanced) {
+                // G3：换货发货 process 已到待收货，库存不足 → ADMIN 回退到 warehouseShip
+                safeCompensateProcess(row.getAftersaleNo(), e);
             }
-            insertLog(row.getAftersaleNo(), operator, action, before, nextStatus, dto.getRemark());
-            row.setStatus(nextStatus);
-            if (logistics != null) {
-                row.setLogisticsInfo(logistics);
-            }
-            if (refundDetail != null) {
-                row.setRefundDetail(refundDetail);
-            }
-            aftersaleNotifyPublisher.publish(row, action);
-            return toVO(row, false);
-        });
-        return vo;
+            throw e;
+        }
+    }
+
+    private ProcessInstanceVO invokeProcess(TicketActionDTO dto, Operator operator, TicketAction action) {
+        ProcessActionDTO processDto = buildProcessAction(dto, operator, action);
+        switch (action) {
+            case REJECT:
+                return R.unwrap(processFeignClient.reject(processDto));
+            case WITHDRAW:
+                return R.unwrap(processFeignClient.withdraw(processDto));
+            case ROLLBACK:
+                return R.unwrap(processFeignClient.rollback(processDto));
+            default:
+                return R.unwrap(processFeignClient.complete(processDto));
+        }
+    }
+
+    private static boolean actionCompletesProcessTask(TicketAction action) {
+        return action != TicketAction.REJECT
+                && action != TicketAction.WITHDRAW
+                && action != TicketAction.ROLLBACK;
+    }
+
+    /** 流程已 complete 后本地失败：以 ADMIN 回退到上一节点，与售后本地状态对齐 */
+    private void safeCompensateProcess(String aftersaleNo, Exception cause) {
+        try {
+            ProcessActionDTO compensate = new ProcessActionDTO();
+            compensate.setBusinessKey(aftersaleNo);
+            compensate.setOperator("system");
+            compensate.setRole(RoleEnum.ADMIN.name());
+            compensate.setRemark("本地事务失败，补偿回滚流程");
+            R.unwrap(processFeignClient.rollback(compensate));
+            log.warn("process compensated after local failure, aftersaleNo={}", aftersaleNo, cause);
+        } catch (Exception compensateEx) {
+            log.error("process compensate FAILED, aftersaleNo={}, original={}",
+                    aftersaleNo, cause.toString(), compensateEx);
+        }
     }
 
     private static RefundDetail buildRefundDetail(TicketAction action, TicketActionDTO dto, Ticket row) {

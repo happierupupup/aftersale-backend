@@ -25,6 +25,26 @@ fi
 
 mkdir -p "$RMQ_HOME/logs" "$HOME/rocketmq/store"
 
+# 官方脚本默认 NameServer 4g / Broker 8g+15g Direct，笔记本容易被 OOM 杀掉
+# 本机 Demo 压到小堆（幂等：已是小堆则跳过）
+patch_heap() {
+  local f="$1"
+  [[ -f "$f" ]] || return 0
+  if grep -q -- '-Xms8g -Xmx8g\|-Xms4g -Xmx4g' "$f" 2>/dev/null; then
+    cp "$f" "$f.bak-heap" 2>/dev/null || true
+    # macOS sed
+    sed -i '' \
+      -e 's/-Xms8g -Xmx8g/-Xms512m -Xmx512m/g' \
+      -e 's/-Xms4g -Xmx4g -Xmn2g/-Xms256m -Xmx256m/g' \
+      -e 's/-Xms4g -Xmx4g/-Xms256m -Xmx256m/g' \
+      -e 's/-XX:MaxDirectMemorySize=15g/-XX:MaxDirectMemorySize=512m/g' \
+      "$f"
+    echo "已下调 JVM 堆: $f （备份 $f.bak-heap）"
+  fi
+}
+patch_heap "$RMQ_HOME/bin/runbroker.sh"
+patch_heap "$RMQ_HOME/bin/runserver.sh"
+
 echo "JAVA_HOME=$JAVA_HOME"
 echo "RMQ_HOME=$RMQ_HOME"
 echo "启动 NameServer :9876 ..."

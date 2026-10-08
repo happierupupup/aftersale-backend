@@ -11,6 +11,11 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/aftersale?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
+    # Activiti start 在嵌套事务/ID 块分配时会占多条连接；默认 10 在 VU≥20 压测会池耗尽
+    hikari:
+      maximum-pool-size: 80
+      minimum-idle: 10
+      connection-timeout: 10000
   activiti:
     database-schema-update: true
     check-process-definitions: true
