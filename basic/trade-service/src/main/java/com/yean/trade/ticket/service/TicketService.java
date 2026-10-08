@@ -2,14 +2,29 @@ package com.yean.trade.ticket.service;
 
 import com.yean.trade.ticket.dto.TicketActionDTO;
 import com.yean.trade.ticket.dto.TicketApplyDTO;
+import com.yean.trade.ticket.dto.TicketDraftDTO;
 import com.yean.trade.ticket.dto.TicketQueryDTO;
 import com.yean.trade.ticket.dto.TicketVO;
 import com.yean.common.dto.Operator;
 import com.yean.common.result.PageResult;
 
+import java.util.List;
+
 public interface TicketService {
 
     TicketVO apply(TicketApplyDTO dto, Operator operator);
+
+    /** 保存草稿（同用户+订单+SKU upsert）；不启流程、不占进行中位 */
+    TicketVO saveDraft(TicketDraftDTO dto, Operator operator);
+
+    /** 当前用户草稿列表（前端进申请页可查 draft=true） */
+    List<TicketVO> listMyDrafts(Operator operator);
+
+    /** 按订单+SKU 取当前用户草稿，无则 null */
+    TicketVO getMyDraft(String orderNo, Long skuId, Operator operator);
+
+    /** 删除草稿 */
+    void deleteDraft(String aftersaleNo, Operator operator);
 
     PageResult<TicketVO> page(TicketQueryDTO query, Operator operator);
 

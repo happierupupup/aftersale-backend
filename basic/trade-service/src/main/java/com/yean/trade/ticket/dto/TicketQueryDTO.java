@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 @Schema(description = "售后列表查询，条件均可选")
 public class TicketQueryDTO extends PageQuery {
 
-    @Schema(description = "售后状态：0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回")
+    @Schema(description = "售后状态：-1草稿 0待审核…；不传则列表排除草稿")
     private Integer status;
 
     @Schema(description = "1退货 2换货 3仅退款")

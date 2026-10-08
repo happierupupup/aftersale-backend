@@ -2,12 +2,15 @@ package com.yean.trade.ticket.enums;
 
 /**
  * 售后主链路（精简）：
- * 申请 → 待审核 →（通过）待仓库发货 → 待用户收货 → 待退款 → 已办结
+ * 草稿 → 提交 → 待审核 →（通过）待仓库发货 → 待用户收货 → 待退款 → 已办结
  * 仅退款：审核通过后跳过发货/收货，直接待退款。
+ * 草稿 active_flag=NULL、不启流程；提交时删草稿再新增正式单（非原地升格）。
  * 驳回仅允许待审核；撤销允许待审核或待仓库发货（发货前）。
  */
 public enum TicketStatus {
 
+    /** 申请草稿：可改可删，商家不可见；提交时删除后再 insert 正式单 */
+    DRAFT(-1, "草稿"),
     PENDING(0, "待审核"),
     WAIT_SHIP(1, "待仓库发货"),
     WAIT_RECEIVE(2, "待用户收货"),
@@ -38,5 +41,9 @@ public enum TicketStatus {
             return false;
         }
         return status == DONE.code || status == REJECTED.code || status == CANCELED.code;
+    }
+
+    public static boolean isDraft(Integer status) {
+        return status != null && status == DRAFT.code;
     }
 }

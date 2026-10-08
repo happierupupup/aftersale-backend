@@ -4,7 +4,8 @@ USE aftersale;
 -- 售后表（aftersale_*，trade-service / ticket 域；订单见 05-order.sql）
 -- 售后单表：aftersale_ticket（Java 域对象 Ticket）
 -- 售后类型 type：1退货 2换货 3仅退款
--- 售后状态 status：0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回
+-- 售后状态 status：-1草稿 0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回
+-- 草稿：用户「保存」写入，active_flag=NULL（不占 uk_order_sku 进行中位），不启流程；「提交」先删草稿再新增正式单
 -- 主链路：申请→待审核→(通过)待仓库发货→待用户收货→待退款→已办结；仅退款审核后直达待退款
 -- 站内信走 sys_notify，此处不建 notification
 -- ---------------------------------------------------------------------------
@@ -22,7 +23,7 @@ CREATE TABLE aftersale_ticket (
     user_id              BIGINT         NOT NULL COMMENT '申请用户ID',
     merchant_id          BIGINT         NOT NULL COMMENT '商家ID',
     type                 TINYINT        NOT NULL COMMENT '1退货 2换货 3仅退款',
-    status               TINYINT        NOT NULL DEFAULT 0 COMMENT '0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回',
+    status               TINYINT        NOT NULL DEFAULT 0 COMMENT '-1草稿 0待审核 1待仓库发货 2待用户收货 3待退款 4已办结 5已驳回 6已撤回',
     sku_id               BIGINT         NOT NULL COMMENT 'SKU ID（原订单商品）',
     sku_name             VARCHAR(128)   NOT NULL COMMENT '商品名称快照',
     exchange_sku_id      BIGINT                  DEFAULT NULL COMMENT '换货目标 SKU；仅 type=2 有值',
@@ -32,7 +33,7 @@ CREATE TABLE aftersale_ticket (
     logistics_info       JSON                    DEFAULT NULL COMMENT '物流信息',
     refund_detail        JSON                    DEFAULT NULL COMMENT '退款明细',
     -- 进行中=1；驳回/撤回置 NULL，释放 (order_no, sku_id) 申请位。MySQL 唯一索引允许多个 NULL
-    active_flag          TINYINT                 DEFAULT 1 COMMENT '进行中=1，终态（驳回/撤回）=NULL',
+    active_flag          TINYINT                 DEFAULT 1 COMMENT '进行中=1；草稿/驳回/撤回=NULL（不占 uk_order_sku）',
     process_instance_id  VARCHAR(64)             DEFAULT NULL COMMENT 'Activiti流程实例ID',
     create_time          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time          DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

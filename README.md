@@ -4,21 +4,25 @@ Spring Cloud 电商**售后退换货** Demo：网关鉴权 + 用户中心 + 交�
 
 技术栈：Spring Boot 2.7、Spring Cloud Gateway、OpenFeign、MyBatis-Plus、Redisson、Activiti 6、MySQL 8、Redis、RocketMQ 4.9（通知）。
 
+配套前端：[happierupupup/aftersale-frontend](https://github.com/happierupupup/aftersale-frontend)— Vue3 + TS + Vite5 + Element Plus，开发时代理到 gateway `:8080`。
+
 ## 模块与端口
 
 ```
-aftersale-backend
-├── common/              # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、Feign
-├── portal/              # 用户中心 :8081（sys_* 表）
-├── gateway/             # 网关鉴权 :8080（不连业务库）
-├── basic/
-│   ├── trade-service/   # 交易业务 :8082（订单 + 售后 + SKU/库存；Feign 调流程；发/收售后通知）
-│   └── process-service/ # Activiti 流程引擎 :8083（process_* / act_*）
-├── config-file/
-│   ├── sql/             # 建库建表（单库 aftersale）
-│   └── rocketmq/        # Broker 配置 + 本机启停脚本 start-local.sh / stop-local.sh
-├── docs/                # 本地手册（默认 gitignore）：test.md / problem.md 等
-└── docker-compose.yml   # 可选：Redis、RocketMQ、Nacos（也可用本机二进制/安装包）
+IdeaProjects/
+├── aftersale-backend/          # 本仓库
+│   ├── common/                 # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、Feign
+│   ├── portal/                 # 用户中心 :8081（sys_* 表）
+│   ├── gateway/                # 网关鉴权 :8080（不连业务库）
+│   ├── basic/
+│   │   ├── trade-service/      # 交易 :8082（订单 + 售后 + SKU/库存；Feign 流程；通知）
+│   │   └── process-service/    # Activiti :8083
+│   ├── config-file/
+│   │   ├── sql/                # 建库建表（单库 aftersale）
+│   │   └── rocketmq/           # 本机启停脚本
+│   ├── docs/                   # 本地手册（默认 gitignore）：plan / test / problem 等
+│   └── docker-compose.yml
+└── aftersale-frontend/         # 前端仓库 clone 至此（联调 :5173）
 ```
 
 | 服务 | 端口 | 职责 |
@@ -46,11 +50,20 @@ aftersale-backend
 
 ## 售后流程（已可推进）
 
-用户 `apply` → trade 落库并 Feign `process/start`，停在 **商家审核**。商家查待审核列表（或详情）后：
+申请页两个按钮：
+
+| 前端按钮 | 接口 | 行为 |
+|----------|------|------|
+| **保存** | `POST /aftersale/draft` | 同用户+订单+SKU **upsert** 草稿；`status=-1`，`active_flag=NULL`；**不启流程**；商家列表不可见 |
+| **提交** | `POST /aftersale/apply` | **先删同单草稿**，再新增正式单 + Feign `process/start`，停在商家审核 |
+
+进申请页回填：`GET /aftersale/draft?orderNo=&skuId=`（或 `/draft/mine`），看返回里的 **`draft: true`** / `status: -1`。
+
+正式单推进：商家查待审核列表（或详情）后：
 
 - **`approve`**：按类型走不同 BPMN 通道  
-- **`reject`**（可带 `remark`）：流程结束，售后单 **已驳回**（`active_flag` 释放，用户可重新申请；不是回到「用户待改」节点）  
-- **`withdraw`**：仅待审核，申请人撤回 → **已撤回**
+- **`reject`**（可带 `remark`）：流程结束 → **已驳回**（释放 `active_flag`，可重新申请）  
+- **`withdraw`**：待审核或待仓库发货（发货前）→ **已撤回**
 
 | type | 含义 | 审核通过后节点 |
 |------|------|----------------|
@@ -58,25 +71,33 @@ aftersale-backend
 | 2 | 换货（须 `exchangeSkuId`） | 仓库发货（扣新 SKU）→ 用户收货（旧品回库）→ 办结 |
 | 3 | 仅退款 | 商家退款 → 办结（**不经仓库**） |
 
-角色：审核/退款=`MERCHANT`（且商家归属）、发货=`WAREHOUSE`、收货=申请人 `USER`。`DONE`/`REJECTED`/`CANCELED` 后再改会被拒绝。
+角色：审核/退款=`MERCHANT`（且商家归属）、发货=`WAREHOUSE`、收货=申请人 `USER`。`DONE`/`REJECTED`/`CANCELED` 后再改会被拒绝（终态只读）。列表/详情按角色强制过滤（USER 本人、MERCHANT 本商家）。
 
-通知（阶段 **8b**）：节点流转与 `local_message(NEW)` **同事务**提交 → 定时/手动 Sender 投递 Topic `aftersale_notify` → trade Consumer → portal `/notify/send`。申请时 **`merchant_id` 取自 `stock_sku`**。MQ 宕机时消息停在 NEW，恢复后补投。测通知见本地 `docs/test.md` §7。
+售后状态码：
 
-催办：trade 每天 **10:00**（Asia/Shanghai）扫描待审核/待发货/待退款单，聚合站内信提醒责任人；可手动 `POST /aftersale/job/pending-remind`。  
-超时关单：每天 **2:30** 将**产生超过 48 小时**仍停在待审核/待发货/待退款的单自动关闭，并通知**申请人**；可手动 `POST /aftersale/job/timeout`。
+```text
+-1 草稿 →（提交）0 待审核 → 1 待仓库发货 → 2 待用户收货 → 3 待退款 → 4 已办结
+                              ↘ 5 已驳回 / 6 已撤回
+```
 
-售后状态码：`0待审核 → 1待仓库发货 → 2待用户收货 → 3待退款 → 4已办结`（`5已驳回` / `6已撤回`）。用户可在 **待审核或待仓库发货** 调用 `POST /aftersale/withdraw` 撤销（流程实例删除为 CANCELED）。
+`/aftersale/page` **默认排除草稿**（`status >= 0`）；显式 `status=-1` 可查草稿。
+
+通知（阶段 **8b**）：节点流转与 `local_message(NEW)` **同事务** → Sender 投递 Topic `aftersale_notify` → Consumer → portal `/notify/send`。申请时 **`merchant_id` 取自 `stock_sku`**。测通知见本地 `docs/test.md` §7。
+
+催办：每天 **10:00** 扫待审核/待发货/待退款；手动 `POST /aftersale/job/pending-remind`。  
+超时关单：每天 **2:30** 关闭创建超过 48h 仍停在上述节点的单；手动 `POST /aftersale/job/timeout`。
 
 ## 能力概览
 
-- **portal**：用户部门 CRUD、多角色、登录校验（不签发 Token）、站内通知、接收各服务操作日志
-- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、**路径级角色 ACL**、身份 Header 转发下游
+- **portal**：用户部门 CRUD、多角色、登录校验（不签发 Token）、站内通知、操作日志落库
+- **gateway**：签发/校验 JWT、Redis 黑名单登出、白名单、**路径级角色 ACL**、注入 `X-User-*`
 - **trade / order**：列表、详情、单笔新增、CSV 批量上传
-- **trade / ticket**：Feign 驱动 Activiti；`TicketNodeStrategyFactory.getStrategy(action)` 同步状态/库存
+- **trade / ticket**：草稿保存/加载/删除；`apply` 提交；Feign 驱动 Activiti；策略同步状态/库存；数据权限 + 终态只读
 - **process-service**：BPMN、候选组、终态守卫、`process_oper_log`、回退上一节点
 - **trade / sku + inventory**：SKU CRUD；扣减/回退（幂等 + 锁 + CAS）；写接口限 WAREHOUSE/ADMIN
-- **trade / notify + message**：售后事件 → `local_message` outbox → RocketMQ → 站内信（8b）
+- **trade / notify + message**：售后事件 → outbox → RocketMQ → 站内信（8b）
 - **统一返回**：`{code, msg, data}`，分页 `PageResult`，错误码 `ErrorEnum`
+- **前端**：登录按角色菜单；售后工作台左列表右详情；管理员用户管理（页面已有，草稿双按钮待接）
 
 ## 接口前缀（经 gateway，也可直连服务端口）
 
@@ -85,11 +106,21 @@ aftersale-backend
 | 登录登出 | `/api/auth/**`（仅 gateway） |
 | 用户 / 部门 / 通知 / 操作日志 | `/user/**` `/dept/**` `/notify/**` `/operatelog/**` → portal |
 | 订单 | `/order/**` → trade |
-| 售后 | `/aftersale/**` → trade（含 `/aftersale/rollback`、`/aftersale/job/**`） |
+| 售后 | `/aftersale/**` → trade（含 draft / apply / rollback / job） |
 | 本地消息 | `/message/job/**` → trade（扫表投递） |
 | SKU | `/sku/**` → trade |
 | 库存 | `/stock/**` → trade |
 | 流程（调试） | `/process/**` → process-service（主路径为 trade Feign） |
+
+### 售后草稿 / 提交（联调常用）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/aftersale/draft` | 保存草稿（部分字段可空；同用户+订单+SKU upsert） |
+| GET | `/aftersale/draft?orderNo=&skuId=` | 加载当前用户该单草稿；无则 `data=null` |
+| GET | `/aftersale/draft/mine` | 当前用户全部草稿 |
+| DELETE | `/aftersale/draft/{aftersaleNo}` | 删草稿 |
+| POST | `/aftersale/apply` | **提交**：先删草稿再新增正式单 + 起流程 |
 
 ## 环境
 
@@ -257,7 +288,6 @@ Swagger：
 
 经网关访问业务接口需：`Authorization: Bearer <token>`。本地直连 trade 时可用 Header `X-User-Id` / `X-Username` / `X-Role`（`yean.operator.allow-body=true` 时也可用 body 调试字段）。
 
-更完整的联调步骤（登录、库存、售后闭环、通知 A/B 测）见本地 **`docs/test.md`**。
 
 ### 5. 命令行示例
 
@@ -289,13 +319,24 @@ curl -X POST http://127.0.0.1:8080/stock/deduct \
   -H 'Content-Type: application/json' \
   -d '{"skuId":1001,"changeNum":1,"bizNo":"DEMO-001"}'
 
-# 售后：用户申请（本地直连示例；经网关则用 USER 账号登录拿 token）
+# 售后草稿：保存（部分字段可空；本地直连示例）
+curl -X POST http://127.0.0.1:8082/aftersale/draft \
+  -H 'Content-Type: application/json' \
+  -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"先存着","userId":5,"username":"精神状态良好","role":"USER"}'
+
+# 加载草稿（回填）
+curl 'http://127.0.0.1:8082/aftersale/draft?orderNo=ORD20250920001&skuId=1001' \
+  -H 'X-User-Id: 5' -H 'X-Username: 精神状态良好' -H 'X-Role: USER'
+
+# 提交正式单（会先删同单草稿再新增；经网关则用 USER token）
 # type=1 退货 / 3 仅退款；type=2 换货须带 exchangeSkuId
 curl -X POST http://127.0.0.1:8082/aftersale/apply \
   -H 'Content-Type: application/json' \
   -d '{"orderNo":"ORD20250920001","skuId":1001,"type":1,"num":1,"reason":"质量问题","userId":5,"username":"精神状态良好","role":"USER"}'
 
-curl 'http://127.0.0.1:8082/aftersale/page?page=1&size=10&userId=5'
+# 列表默认不含草稿
+curl 'http://127.0.0.1:8082/aftersale/page?page=1&size=10' \
+  -H 'X-User-Id: 5' -H 'X-Username: 精神状态良好' -H 'X-Role: USER'
 
 # 商家审核通过（退货/换货会进仓库；仅退款 type=3 则下一节点是退款）
 curl -X POST http://127.0.0.1:8082/aftersale/approve \
@@ -351,6 +392,6 @@ macOS 若已用 brew / 本机二进制起 Redis、MQ，**不要再**对同端口
 ## 说明与待办
 
 - 流程推进 + 退货/换货库存联动 **已落地**；须先起 `process-service` 再起 `trade`。
-- 售后通知 **8b 已落地**（同事务写 `local_message` + Sender 扫表投递）；停 MQ 时消息停 NEW，恢复后发出。
-- 催办 **9a** / 超时关单 **9b** 已落地（`/aftersale/job/pending-remind`、`/aftersale/job/timeout`）。
-- 联调步骤：本地 `docs/test.md`；排错 / 设计记录：本地 `docs/problem.md`；实现计划：[`plan.md`](plan.md)。
+- 售后通知 **8b**、催办 **9a**、超时关单 **9b** **已落地**。
+- 草稿 **已落地**（保存 / 加载 / 提交先删再增）；前端申请页「保存+提交」**已接**。
+- 数据权限 T1 / 终态只读 T2 **已落地**；前端工作台与角色菜单见 [aftersale-frontend](https://github.com/happierupupup/aftersale-frontend)。

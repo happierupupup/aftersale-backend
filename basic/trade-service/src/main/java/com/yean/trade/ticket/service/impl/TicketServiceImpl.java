@@ -24,6 +24,7 @@ import com.yean.trade.ticket.dto.RefundDetail;
 import com.yean.trade.ticket.dto.Ticket;
 import com.yean.trade.ticket.dto.TicketActionDTO;
 import com.yean.trade.ticket.dto.TicketApplyDTO;
+import com.yean.trade.ticket.dto.TicketDraftDTO;
 import com.yean.trade.ticket.dto.TicketLogVO;
 import com.yean.trade.ticket.dto.TicketOperLog;
 import com.yean.trade.ticket.dto.TicketQueryDTO;
@@ -50,6 +51,8 @@ import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -76,6 +79,8 @@ public class TicketServiceImpl implements TicketService {
     public TicketVO apply(TicketApplyDTO dto, Operator operator) {
         requireUserId(operator);
         TicketType.require(dto.getType());
+        // 提交：先删同用户同单草稿，再新增正式单（非草稿原地升格）
+        deleteDraftQuietly(operator.getUserId(), dto.getOrderNo(), dto.getSkuId());
         Ticket exist = ticketMapper.selectActiveByOrderNoAndSkuId(dto.getOrderNo(), dto.getSkuId());
         if (exist != null) {
             return toVO(exist, false);
@@ -163,6 +168,93 @@ public class TicketServiceImpl implements TicketService {
             throw e;
         }
         return vo;
+    }
+
+    @Override
+    public TicketVO saveDraft(TicketDraftDTO dto, Operator operator) {
+        requireUserId(operator);
+        assertUserOrAdmin(operator);
+        OrderVO order = requireOrder(dto.getOrderNo());
+        validateDraft(order, dto, operator);
+        if (ticketMapper.selectActiveByOrderNoAndSkuId(dto.getOrderNo(), dto.getSkuId()) != null) {
+            throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW.getCode(), "已有进行中售后，无法保存草稿");
+        }
+        Long merchantId = skuService.requireMerchantId(order.getSkuId());
+        int type = dto.getType() == null ? TicketType.RETURN.getCode() : dto.getType();
+        TicketType.require(type);
+        int num = dto.getNum() == null ? 1 : dto.getNum();
+        if (num > order.getNum()) {
+            throw new BizException(ErrorEnum.AFTERSALE_NUM_INVALID);
+        }
+        BigDecimal amount = calcAmount(order, num);
+        Long exchangeSkuId = type == TicketType.EXCHANGE.getCode() ? dto.getExchangeSkuId() : null;
+
+        return transactionTemplate.execute(status -> {
+            Ticket draft = ticketMapper.selectDraftByUserOrderSku(
+                    operator.getUserId(), dto.getOrderNo(), dto.getSkuId());
+            if (draft != null) {
+                draft.setType(type);
+                draft.setNum(num);
+                draft.setAmount(amount);
+                draft.setReason(dto.getReason());
+                draft.setExchangeSkuId(exchangeSkuId);
+                draft.setMerchantId(merchantId);
+                draft.setSkuName(order.getSkuName());
+                ticketMapper.updateById(draft);
+                log.debug("draft updated, aftersaleNo={}", draft.getAftersaleNo());
+                return toVO(draft, false);
+            }
+            Ticket row = new Ticket();
+            row.setAftersaleNo(nextAftersaleNo());
+            row.setOrderNo(order.getOrderNo());
+            row.setUserId(operator.getUserId());
+            row.setMerchantId(merchantId);
+            row.setType(type);
+            row.setStatus(TicketStatus.DRAFT.getCode());
+            row.setSkuId(order.getSkuId());
+            row.setSkuName(order.getSkuName());
+            row.setExchangeSkuId(exchangeSkuId);
+            row.setNum(num);
+            row.setAmount(amount);
+            row.setReason(dto.getReason());
+            row.setActiveFlag(null);
+            ticketMapper.insert(row);
+            log.debug("draft created, aftersaleNo={}", row.getAftersaleNo());
+            return toVO(row, false);
+        });
+    }
+
+    @Override
+    public List<TicketVO> listMyDrafts(Operator operator) {
+        requireUserId(operator);
+        assertUserOrAdmin(operator);
+        List<Ticket> rows = ticketMapper.selectDraftsByUserId(operator.getUserId());
+        if (rows == null || rows.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return rows.stream().map(r -> toVO(r, false)).collect(Collectors.toList());
+    }
+
+    @Override
+    public TicketVO getMyDraft(String orderNo, Long skuId, Operator operator) {
+        requireUserId(operator);
+        assertUserOrAdmin(operator);
+        if (!StringUtils.hasText(orderNo) || skuId == null) {
+            throw new BizException(ErrorEnum.PARAM_INVALID);
+        }
+        Ticket draft = ticketMapper.selectDraftByUserOrderSku(operator.getUserId(), orderNo, skuId);
+        return draft == null ? null : toVO(draft, false);
+    }
+
+    @Override
+    public void deleteDraft(String aftersaleNo, Operator operator) {
+        requireUserId(operator);
+        Ticket row = requireAftersale(aftersaleNo);
+        if (!TicketStatus.isDraft(row.getStatus())) {
+            throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW.getCode(), "仅草稿可删除");
+        }
+        assertDraftOwner(row, operator);
+        ticketMapper.deleteById(row.getId());
     }
 
     @Override
@@ -432,10 +524,55 @@ public class TicketServiceImpl implements TicketService {
         }
     }
 
-    /** T2：DONE / REJECTED / CANCELED 统一只读（接口入口；流程侧另有终态守卫） */
+    /** T2：DONE / REJECTED / CANCELED 统一只读；草稿禁止走审核/发货等流程操作 */
     private static void assertTicketMutable(Ticket row) {
+        if (TicketStatus.isDraft(row.getStatus())) {
+            throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW.getCode(), "草稿请先提交后再操作");
+        }
         if (TicketStatus.isTerminal(row.getStatus())) {
             throw new BizException(ErrorEnum.PROCESS_ENDED.getCode(), "售后单已终态，禁止修改");
+        }
+    }
+
+    private void deleteDraftQuietly(Long userId, String orderNo, Long skuId) {
+        Ticket draft = ticketMapper.selectDraftByUserOrderSku(userId, orderNo, skuId);
+        if (draft != null) {
+            ticketMapper.deleteById(draft.getId());
+            log.info("draft removed before submit, aftersaleNo={}", draft.getAftersaleNo());
+        }
+    }
+
+    private void assertUserOrAdmin(Operator operator) {
+        if (isAdmin(operator)) {
+            return;
+        }
+        if (operator.getRole() == null || !RoleEnum.USER.name().equalsIgnoreCase(operator.getRole())) {
+            throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+        }
+    }
+
+    private void assertDraftOwner(Ticket row, Operator operator) {
+        if (isAdmin(operator)) {
+            return;
+        }
+        if (!row.getUserId().equals(operator.getUserId())) {
+            throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
+        }
+    }
+
+    /** 草稿校验：弱于正式申请；换货可不填 exchangeSkuId */
+    private void validateDraft(OrderVO order, TicketDraftDTO dto, Operator operator) {
+        if (!isAdmin(operator) && !order.getUserId().equals(operator.getUserId())) {
+            throw new BizException(ErrorEnum.ORDER_NOT_OWNER);
+        }
+        if (!order.getSkuId().equals(dto.getSkuId())) {
+            throw new BizException(ErrorEnum.PARAM_INVALID.getCode(), "skuId 与订单不符");
+        }
+        if (dto.getType() != null) {
+            TicketType.require(dto.getType());
+        }
+        if (dto.getNum() != null && dto.getNum() > order.getNum()) {
+            throw new BizException(ErrorEnum.AFTERSALE_NUM_INVALID);
         }
     }
 
@@ -542,9 +679,13 @@ public class TicketServiceImpl implements TicketService {
         throw new BizException(ErrorEnum.AFTERSALE_NO_PERMISSION);
     }
 
-    /** T1 详情数据权限：缺省拒绝；与列表规则一致 */
+    /** T1 详情数据权限：缺省拒绝；草稿仅本人/ADMIN 可见 */
     private void assertCanView(Ticket row, Operator operator) {
         requireUserId(operator);
+        if (TicketStatus.isDraft(row.getStatus())) {
+            assertDraftOwner(row, operator);
+            return;
+        }
         if (isAdmin(operator) || isWarehouse(operator)) {
             return;
         }
@@ -630,6 +771,7 @@ public class TicketServiceImpl implements TicketService {
         vo.setMerchantId(row.getMerchantId());
         vo.setType(row.getType());
         vo.setStatus(row.getStatus());
+        vo.setDraft(TicketStatus.isDraft(row.getStatus()));
         vo.setSkuId(row.getSkuId());
         vo.setSkuName(row.getSkuName());
         vo.setExchangeSkuId(row.getExchangeSkuId());

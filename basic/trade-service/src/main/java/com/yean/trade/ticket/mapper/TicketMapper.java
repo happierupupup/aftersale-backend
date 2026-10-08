@@ -16,8 +16,16 @@ public interface TicketMapper extends BaseMapper<Ticket> {
 
     Ticket selectByAftersaleNo(@Param("aftersaleNo") String aftersaleNo);
 
-    /** 查进行中的单（active_flag = 1）；驳回/撤回的终态单不占用 (orderNo, skuId) 申请位 */
+    /** 查进行中的单（active_flag = 1）；驳回/撤回/草稿不占用 (orderNo, skuId) 申请位 */
     Ticket selectActiveByOrderNoAndSkuId(@Param("orderNo") String orderNo, @Param("skuId") Long skuId);
+
+    /** 当前用户在某订单+SKU 下的草稿（status=-1） */
+    Ticket selectDraftByUserOrderSku(@Param("userId") Long userId,
+                                     @Param("orderNo") String orderNo,
+                                     @Param("skuId") Long skuId);
+
+    /** 当前用户全部草稿 */
+    java.util.List<Ticket> selectDraftsByUserId(@Param("userId") Long userId);
 
     IPage<Ticket> selectListByQuery(IPage<Ticket> page, @Param("q") TicketQueryDTO query);
 

@@ -1,5 +1,6 @@
 package com.yean.trade.ticket.dto;
 
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -33,7 +34,11 @@ public class Ticket {
     private LogisticsInfo logisticsInfo;
     @TableField(typeHandler = JacksonTypeHandler.class)
     private RefundDetail refundDetail;
-    /** 进行中=1；驳回/撤回置 NULL，释放 (order_no, sku_id) 申请位，允许重新申请 */
+    /**
+     * 进行中=1；草稿/驳回/撤回=NULL。
+     * ALWAYS：保证草稿 insert 能写入 NULL（否则默认 NOT_NULL 策略会跳过，落到列 DEFAULT 1）。
+     */
+    @TableField(insertStrategy = FieldStrategy.ALWAYS, updateStrategy = FieldStrategy.ALWAYS)
     private Integer activeFlag;
     private String processInstanceId;
     private LocalDateTime createTime;

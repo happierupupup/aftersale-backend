@@ -46,10 +46,33 @@
           AND active_flag = 1
     </select>
 
+    <select id="selectDraftByUserOrderSku" resultMap="TicketResultMap">
+        SELECT <include refid="TicketColumns"/>
+        FROM aftersale_ticket
+        WHERE user_id = #{userId}
+          AND order_no = #{orderNo}
+          AND sku_id = #{skuId}
+          AND status = -1
+        ORDER BY id DESC
+        LIMIT 1
+    </select>
+
+    <select id="selectDraftsByUserId" resultMap="TicketResultMap">
+        SELECT <include refid="TicketColumns"/>
+        FROM aftersale_ticket
+        WHERE user_id = #{userId}
+          AND status = -1
+        ORDER BY id DESC
+    </select>
+
     <select id="selectListByQuery" resultMap="TicketResultMap">
         SELECT <include refid="TicketColumns"/>
         FROM aftersale_ticket
         <where>
+            <!-- 默认排除草稿；显式查 status=-1 时仍可命中 -->
+            <if test="q.status == null">
+                AND status &gt;= 0
+            </if>
             <if test="q.status != null">
                 AND status = #{q.status}
             </if>
