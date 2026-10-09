@@ -1,6 +1,8 @@
 # aftersale-backend
 
-[English](./README.md) | [中文](./README.zh-CN.md)
+<p align="center">
+  <a href="https://github.com/happierupupup/aftersale-backend">English</a> | <b>中文</b>
+</p>
 
 Spring Cloud 电商**售后退换货**后端：网关鉴权 + 用户中心 + 交易业务（订单 / 售后 / SKU 库存）+ Activiti 流程引擎。
 
@@ -11,20 +13,18 @@ Spring Cloud 电商**售后退换货**后端：网关鉴权 + 用户中心 + 交
 ## 模块与端口
 
 ```
-IdeaProjects/
-├── aftersale-backend/          # 本仓库
-│   ├── common/                 # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、Feign
-│   ├── portal/                 # 用户中心 :8081（sys_* 表）
-│   ├── gateway/                # 网关鉴权 :8080（不连业务库）
-│   ├── basic/
-│   │   ├── trade-service/      # 交易 :8082（订单 + 售后 + SKU/库存；Feign 流程；通知）
-│   │   └── process-service/    # Activiti :8083
-│   ├── config-file/
-│   │   ├── sql/                # 建库建表（单库 aftersale）
-│   │   └── rocketmq/           # 本机启停脚本
-│   ├── docs/                   # 本地手册（默认 gitignore）：plan / test / problem 等
-│   └── docker-compose.yml
-└── aftersale-frontend/         # 前端仓库 clone 至此（联调 :5173）
+aftersale-backend/
+├── common/                 # 公共 jar：R、异常、角色权限、RedisBizLock、@OperateLog、Feign
+├── portal/                 # 用户中心 :8081（sys_* 表）
+├── gateway/                # 网关鉴权 :8080（不连业务库）
+├── basic/
+│   ├── trade-service/      # 交易 :8082（订单 + 售后 + SKU/库存；Feign 流程；通知）
+│   └── process-service/    # Activiti :8083
+├── config-file/
+│   ├── sql/                # 建库建表（单库 aftersale）
+│   └── rocketmq/           # 本机启停脚本
+├── docs/                   # 本地手册（默认 gitignore）：plan / test / problem 等
+└── docker-compose.yml
 ```
 
 | 服务 | 端口 | 职责 |
@@ -33,6 +33,7 @@ IdeaProjects/
 | portal | 8081 | 用户 / 部门 / 通知 / 操作日志落库 |
 | trade-service | 8082 | 订单、售后单、SKU 档案、库存扣减回退、售后 MQ 通知 |
 | process-service | 8083 | Activiti：start/complete/reject/withdraw/rollback/history |
+| MySQL | 3306 | 业务库 `aftersale`（portal / trade / process 共用） |
 | Redis | 6379 | 锁 / 缓存 / JWT 黑名单 / 幂等键（必启） |
 | RocketMQ NameServer | 9876 | 售后通知 Topic（测站内信时需要） |
 
@@ -97,9 +98,8 @@ IdeaProjects/
 - **trade / ticket**：草稿保存/加载/删除；`apply` 提交；Feign 驱动 Activiti；策略同步状态/库存；数据权限 + 终态只读
 - **process-service**：BPMN、候选组、终态守卫、`process_oper_log`、回退上一节点
 - **trade / sku + inventory**：SKU CRUD；扣减/回退（幂等 + 锁 + CAS）；写接口限 WAREHOUSE/ADMIN
-- **trade / notify + message**：售后事件 → outbox → RocketMQ → 站内信（8b）
+- **trade / notify + message**：售后事件 → outbox → RocketMQ → 站内信
 - **统一返回**：`{code, msg, data}`，分页 `PageResult`，错误码 `ErrorEnum`
-- **前端**：登录按角色菜单；售后工作台左列表右详情；管理员用户管理；申请页保存/提交
 
 ## 关键设计
 
@@ -110,7 +110,7 @@ IdeaProjects/
 - **库存三件套**：Redisson 锁串行入口 + DB `version` CAS 防超卖 + `stock_flow` 唯一键幂等；SKU Cache Aside，写后**延迟双删**。
 - **多实例安全**：定时催办/超时关单/outbox 扫表用 Redisson `tryLock`；申请与审核操作 Redis SET NX 防重。
 - **定时任务**：outbox 每 5s 扫表投递；流程补偿每 10s 扫 `process_compensate`；催办每天 10:00；超时关单每天 2:30（创建超 48h 未处理则关单）。
-- **旁路小线程池**：`@OperateLog` 固定池异步落库，不挡主链路；SKU 延迟双删用单线程 `ScheduledExecutor`（订单 CSV 批量仍同步，线程池对照未上）。
+- **旁路小线程池**：`@OperateLog` 固定池异步落库，不挡主链路；SKU 延迟双删用单线程 `ScheduledExecutor`（订单 CSV 批量仍同步上）。
 - **可观测**：业务维 `sys_operate_log` / `aftersale_oper_log` / `process_oper_log`；链路维 **`X-Trace-Id`**（gateway 生成或透传 → Feign/WebClient 下游；日志 MDC `%X{traceId}`）。
 
 ## 接口前缀（经 gateway，也可直连服务端口）
@@ -126,7 +126,7 @@ IdeaProjects/
 | 库存 | `/stock/**` → trade |
 | 流程（调试） | `/process/**` → process-service（主路径为 trade Feign） |
 
-### 售后草稿 / 提交（联调常用）
+### 售后草稿 / 提交
 
 | 方法 | 路径 | 说明 |
 |------|------|------|

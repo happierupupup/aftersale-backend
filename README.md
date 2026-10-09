@@ -1,6 +1,8 @@
 # aftersale-backend
 
-[English](./README.md) | [中文](./README.zh-CN.md)
+<p align="center">
+  <b>English</b> | <a href="./README.zh-CN.md">中文</a>
+</p>
 
 Spring Cloud backend for e-commerce **after-sales return / exchange / refund**: gateway auth + user portal + trade domain (orders / tickets / SKU inventory) + Activiti process engine.
 
@@ -11,20 +13,18 @@ Companion frontend: [happierupupup/aftersale-frontend](https://github.com/happie
 ## Modules & ports
 
 ```
-IdeaProjects/
-├── aftersale-backend/          # this repo
-│   ├── common/                 # shared jar: R, exceptions, roles, RedisBizLock, @OperateLog, Feign
-│   ├── portal/                 # user center :8081 (sys_* tables)
-│   ├── gateway/                # auth gateway :8080 (no business DB)
-│   ├── basic/
-│   │   ├── trade-service/      # trade :8082 (orders + tickets + SKU/stock; Feign process; notify)
-│   │   └── process-service/    # Activiti :8083
-│   ├── config-file/
-│   │   ├── sql/                # schema scripts (single DB aftersale)
-│   │   └── rocketmq/           # local start/stop scripts
-│   ├── docs/                   # local notes (gitignored by default): plan / test / problem, etc.
-│   └── docker-compose.yml
-└── aftersale-frontend/         # clone frontend here (local :5173)
+aftersale-backend/
+├── common/                 # shared jar: R, exceptions, roles, RedisBizLock, @OperateLog, Feign
+├── portal/                 # user center :8081 (sys_* tables)
+├── gateway/                # auth gateway :8080 (no business DB)
+├── basic/
+│   ├── trade-service/      # trade :8082 (orders + tickets + SKU/stock; Feign process; notify)
+│   └── process-service/    # Activiti :8083
+├── config-file/
+│   ├── sql/                # schema scripts (single DB aftersale)
+│   └── rocketmq/           # local start/stop scripts
+├── docs/                   # local notes (gitignored by default): plan / test / problem, etc.
+└── docker-compose.yml
 ```
 
 | Service | Port | Role |
@@ -33,6 +33,7 @@ IdeaProjects/
 | portal | 8081 | users / depts / notifications / operate-log persistence |
 | trade-service | 8082 | orders, after-sale tickets, SKU, stock deduct/rollback, after-sale MQ notify |
 | process-service | 8083 | Activiti: start / complete / reject / withdraw / rollback / history |
+| MySQL | 3306 | business DB `aftersale` (shared by portal / trade / process) |
 | Redis | 6379 | locks / cache / JWT blacklist / idempotency keys (required) |
 | RocketMQ NameServer | 9876 | after-sale notify topic (needed when testing in-app messages) |
 
@@ -97,9 +98,8 @@ Timeout close: daily **2:30** close tickets stuck on those nodes longer than 48h
 - **trade / ticket**: draft save/load/delete; `apply` submit; Feign-driven Activiti; strategies sync status/stock; data scope + terminal read-only
 - **process-service**: BPMN, candidate groups, terminal guards, `process_oper_log`, rollback to previous node
 - **trade / sku + inventory**: SKU CRUD; deduct/rollback (idempotent + lock + CAS); write APIs limited to WAREHOUSE/ADMIN
-- **trade / notify + message**: after-sale events → outbox → RocketMQ → in-app message (8b)
+- **trade / notify + message**: after-sale events → outbox → RocketMQ → in-app message
 - **Unified response**: `{code, msg, data}`, paging `PageResult`, errors `ErrorEnum`
-- **Frontend**: role-based menus; after-sale workbench (list + detail); admin user mgmt; apply page save/submit
 
 ## Key design
 
@@ -110,7 +110,7 @@ Timeout close: daily **2:30** close tickets stuck on those nodes longer than 48h
 - **Inventory trio**: Redisson lock serializes entry + DB `version` CAS against oversell + unique key on `stock_flow` for idempotency; SKU Cache Aside with **delayed double-delete** after write.
 - **Multi-instance safety**: scheduled remind / timeout / outbox poller use Redisson `tryLock`; apply and review ops use Redis SET NX for idempotency.
 - **Scheduled jobs**: outbox every 5s; process compensate every 10s on `process_compensate`; remind daily 10:00; timeout close daily 2:30 (close if created > 48h and still stuck).
-- **Side thread pools**: `@OperateLog` fixed pool async persist (off critical path); SKU delayed double-delete uses a single-thread `ScheduledExecutor` (order CSV batch stays sync).
+- **Side thread pools**: `@OperateLog` fixed pool async persist (off critical path); SKU delayed double-delete uses a single-thread `ScheduledExecutor` (order CSV batch remains synchronous).
 - **Observability**: business logs `sys_operate_log` / `aftersale_oper_log` / `process_oper_log`; tracing **`X-Trace-Id`** (gateway generates or forwards → Feign/WebClient; log MDC `%X{traceId}`).
 
 ## API prefixes (via gateway; services also reachable on their ports)
@@ -126,7 +126,7 @@ Timeout close: daily **2:30** close tickets stuck on those nodes longer than 48h
 | Stock | `/stock/**` → trade |
 | Process (debug) | `/process/**` → process-service (main path is trade Feign) |
 
-### After-sale draft / submit (common for local integration)
+### After-sale draft / submit
 
 | Method | Path | Notes |
 |--------|------|-------|
