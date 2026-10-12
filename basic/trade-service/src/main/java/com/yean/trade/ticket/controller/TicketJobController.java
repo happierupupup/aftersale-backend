@@ -4,6 +4,7 @@ import com.yean.common.result.R;
 import com.yean.trade.ticket.compensate.ProcessCompensateService;
 import com.yean.trade.ticket.job.PendingRemindService;
 import com.yean.trade.ticket.job.TimeoutCloseService;
+import com.yean.trade.ticket.start.ProcessStartService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +24,7 @@ public class TicketJobController {
     private final PendingRemindService pendingRemindService;
     private final TimeoutCloseService timeoutCloseService;
     private final ProcessCompensateService processCompensateService;
+    private final ProcessStartService processStartService;
 
     @Operation(summary = "手动触发：未处理售后催办（与每天 10 点定时同一逻辑）")
     @PostMapping("/pending-remind")
@@ -43,5 +45,12 @@ public class TicketJobController {
     public R<Map<String, Integer>> processCompensate() {
         int done = processCompensateService.dispatchDue();
         return R.ok(Collections.singletonMap("compensated", done));
+    }
+
+    @Operation(summary = "手动触发：扫 process_start_job 异步起流程（与定时同一逻辑）")
+    @PostMapping("/process-start")
+    public R<Map<String, Integer>> processStart() {
+        int done = processStartService.dispatchDue();
+        return R.ok(Collections.singletonMap("started", done));
     }
 }

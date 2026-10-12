@@ -1,5 +1,10 @@
 server:
   port: 8082
+  tomcat:
+    threads:
+      # 对齐压测 VU=50，留余量给 outbox/补偿调度
+      max: 120
+      min-spare: 20
 
 spring:
   application:
@@ -11,10 +16,10 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/aftersale?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
-    # 对齐压测 VU=50；apply 持连接期间还会 Feign process / portal
+    # 对齐压测 VU=50；apply 持连接期间还会 Feign process
     hikari:
-      maximum-pool-size: 50
-      minimum-idle: 10
+      maximum-pool-size: 70
+      minimum-idle: 15
       connection-timeout: 10000
   redis:
     host: 127.0.0.1
@@ -29,6 +34,24 @@ spring:
       discovery:
         server-addr: 127.0.0.1:8848
         enabled: false
+
+# Feign：Apache HttpClient 池 + 超时（apply → process/start）
+feign:
+  httpclient:
+    enabled: true
+    max-connections: 200
+    max-connections-per-route: 80
+    connection-timeout: 2000
+    time-to-live: 60
+    time-to-live-unit: seconds
+  client:
+    config:
+      default:
+        connectTimeout: 2000
+        readTimeout: 15000
+      process-service:
+        connectTimeout: 2000
+        readTimeout: 15000
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
@@ -89,6 +112,13 @@ yean:
       scan-limit: 50
       max-retry: 32
       retry-base-seconds: 5
+    process-start:
+      enabled: true
+      # 每 2 秒扫 NEW：apply 先落单后异步 process/start
+      cron: "0/2 * * * * ?"
+      scan-limit: 50
+      max-retry: 32
+      retry-base-seconds: 2
 
 springdoc:
   swagger-ui:

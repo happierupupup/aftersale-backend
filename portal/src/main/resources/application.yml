@@ -1,5 +1,9 @@
 server:
   port: 8081
+  tomcat:
+    threads:
+      max: 80
+      min-spare: 10
 
 spring:
   application:
@@ -11,9 +15,10 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/aftersale?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
+    # OperateLog / 站内信消费会打到 portal；对齐 apply 压测旁路流量
     hikari:
-      maximum-pool-size: 30
-      minimum-idle: 5
+      maximum-pool-size: 40
+      minimum-idle: 8
       connection-timeout: 10000
   redis:
     host: 127.0.0.1

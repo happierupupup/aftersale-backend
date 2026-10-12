@@ -96,6 +96,7 @@ gateway:
         - path: /aftersale/rollback
           methods: [POST]
           roles: [ADMIN]
+        # pending-remind / timeout / process-compensate / process-start
         - path: /aftersale/job/**
           methods: [POST]
           roles: [ADMIN]

@@ -1,5 +1,9 @@
 server:
   port: 8083
+  tomcat:
+    threads:
+      max: 120
+      min-spare: 20
 
 spring:
   application:
@@ -11,10 +15,10 @@ spring:
     url: jdbc:mysql://127.0.0.1:3306/aftersale?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: 123456
-    # Activiti start 在嵌套事务/ID 块分配时会占多条连接；默认 10 在 VU≥20 压测会池耗尽
+    # Activiti start 在嵌套事务/ID 块分配时会占多条连接；VU=50 压测再留余量
     hikari:
-      maximum-pool-size: 80
-      minimum-idle: 10
+      maximum-pool-size: 110
+      minimum-idle: 20
       connection-timeout: 10000
   activiti:
     database-schema-update: true

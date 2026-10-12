@@ -105,8 +105,9 @@ aftersale-backend/
 
 - **双 JWT + Redis 黑名单**：短 Access（Bearer）+ 长 Refresh（HttpOnly Cookie）；续期轮换拉黑旧 `jti`；下游只认 `X-User-*`，多网关共享登录态。
 - **流程独立 + 节点策略**：Activiti 仅 `process-service`；trade Feign 推节点后走 `TicketNodeStrategy`（发货扣新 SKU、收货回旧品等），BPMN 定路径、策略定副作用。
+- **先落单再异步起流程**：apply 同事务写售后单 + `process_start_job`，请求内不 Feign；扫表 / 提交后抢跑 `process/start`，成功回写 `processInstanceId` 再发申请通知；未起流程前审核返回 `PROCESS_STARTING`。
 - **草稿与进行中槽位**：同表草稿 `status=-1`、`active_flag=NULL`、不启流程；**提交先删草稿再新增正式单**；进行中 `(order_no, sku_id, active_flag)` 唯一，驳回/撤回释槽可再申请。
-- **跨服务最终一致**：主状态同步（流程 RPC + 本地事务）；站内信走 outbox（`local_message`）→ RocketMQ → 幂等消费；流程已推进而本地失败时写 `process_compensate` 扫表重试 rollback（防长期半成功）。
+- **跨服务最终一致**：主状态同步（流程 RPC + 本地事务）；站内信走 outbox（`local_message`）→ RocketMQ → 幂等消费；流程已推进而本地失败时写 `process_compensate` 扫表重试 rollback；起流程失败超限则本地关单释槽。
 - **库存三件套**：Redisson 锁串行入口 + DB `version` CAS 防超卖 + `stock_flow` 唯一键幂等；SKU Cache Aside，写后**延迟双删**。
 - **多实例安全**：定时催办/超时关单/outbox 扫表用 Redisson `tryLock`；申请与审核操作 Redis SET NX 防重。
 - **定时任务**：outbox 每 5s 扫表投递；流程补偿每 10s 扫 `process_compensate`；催办每天 10:00；超时关单每天 2:30（创建超 48h 未处理则关单）。
@@ -207,12 +208,12 @@ Remove-Item Env:MYSQL_PWD
 
 演示账号（密码均为 `123456`）：
 
-| 用户名 | 角色 | id |
-|--------|------|-----|
-| `00000` | ADMIN | 1 |
-| `AAA代购` | MERCHANT | 2 |
-| `AAA极速发货` | WAREHOUSE | 3 |
-| `精神状态良好` | USER | 5 |
+| 用户名         | 角色 | id |
+|-------------|------|-----|
+| `admin`     | ADMIN | 1 |
+| `merchant`  | MERCHANT | 2 |
+| `warehouse` | WAREHOUSE | 3 |
+| `user`      | USER | 5 |
 
 演示订单挂在用户 id=5、商家 id=2（见 `05-order.sql`）。表结构变更后若本地已有旧库，需重导或按 `docs/problem.md` / 历史迁移说明处理。
 

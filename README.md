@@ -105,8 +105,9 @@ Timeout close: daily **2:30** close tickets stuck on those nodes longer than 48h
 
 - **Dual JWT + Redis blacklist**: short Access (Bearer) + long Refresh (HttpOnly Cookie); refresh rotates and blacklists old `jti`; downstream trusts only `X-User-*`; multi-gateway shared login state.
 - **Process isolation + node strategies**: Activiti only in `process-service`; after trade Feign advances a node, `TicketNodeStrategy` runs (ship deducts new SKU, receive restocks old, etc.) — BPMN defines path, strategies define side effects.
+- **Persist ticket then async process start**: apply writes ticket + `process_start_job` in one TX (no Feign in-request); poller / after-commit race starts `process/start`, then backfills `processInstanceId` and publishes apply notify; approve before start returns `PROCESS_STARTING`.
 - **Draft vs in-progress slot**: same-table draft `status=-1`, `active_flag=NULL`, no process; **submit deletes draft then creates formal ticket**; in-progress uniqueness on `(order_no, sku_id, active_flag)`; reject/withdraw frees the slot for re-apply.
-- **Cross-service eventual consistency**: main state sync (process RPC + local TX); in-app notify via outbox (`local_message`) → RocketMQ → idempotent consume; if process advanced but local failed, write `process_compensate` and poll-retry rollback (avoid long half-success).
+- **Cross-service eventual consistency**: main state sync (process RPC + local TX); in-app notify via outbox (`local_message`) → RocketMQ → idempotent consume; if process advanced but local failed, write `process_compensate` and poll-retry rollback; process-start failures after max retry cancel the ticket and free the slot.
 - **Inventory trio**: Redisson lock serializes entry + DB `version` CAS against oversell + unique key on `stock_flow` for idempotency; SKU Cache Aside with **delayed double-delete** after write.
 - **Multi-instance safety**: scheduled remind / timeout / outbox poller use Redisson `tryLock`; apply and review ops use Redis SET NX for idempotency.
 - **Scheduled jobs**: outbox every 5s; process compensate every 10s on `process_compensate`; remind daily 10:00; timeout close daily 2:30 (close if created > 48h and still stuck).
@@ -210,11 +211,11 @@ If the terminal shows garbled text, check `HEX(username)` for real UTF-8 (e.g. `
 Seed accounts (password `123456` for all):
 
 | Username | Role | id |
-|----------|------|-----|
-| `00000` | ADMIN | 1 |
-| `AAA代购` | MERCHANT | 2 |
-| `AAA极速发货` | WAREHOUSE | 3 |
-| `精神状态良好` | USER | 5 |
+|-------------|------|-----|
+| `admin`     | ADMIN | 1 |
+| `merchant`  | MERCHANT | 2 |
+| `warehouse` | WAREHOUSE | 3 |
+| `user`      | USER | 5 |
 
 Sample orders belong to user id=5, merchant id=2 (see `05-order.sql`). After schema changes, re-import or follow `docs/problem.md` / historical migration notes.
 

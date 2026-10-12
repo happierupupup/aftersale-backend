@@ -11,7 +11,6 @@ import com.yean.trade.order.dto.OrderVO;
 import com.yean.common.dto.process.ProcessActionDTO;
 import com.yean.common.dto.process.ProcessDefKey;
 import com.yean.common.dto.process.ProcessInstanceVO;
-import com.yean.common.dto.process.ProcessStartDTO;
 import com.yean.common.dto.process.ProcessTaskKeys;
 import com.yean.common.result.PageResult;
 import com.yean.common.result.R;
@@ -36,6 +35,7 @@ import com.yean.trade.ticket.enums.TicketType;
 import com.yean.trade.ticket.mapper.TicketMapper;
 import com.yean.trade.ticket.mapper.TicketOperLogMapper;
 import com.yean.trade.ticket.service.TicketService;
+import com.yean.trade.ticket.start.ProcessStartService;
 import com.yean.trade.ticket.strategy.TicketNodeContext;
 import com.yean.trade.ticket.strategy.TicketNodeStrategy;
 import com.yean.trade.ticket.strategy.TicketNodeStrategyFactory;
@@ -54,6 +54,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -73,6 +74,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketOperLogMapper ticketOperLogMapper;
     private final AftersaleNotifyPublisher aftersaleNotifyPublisher;
     private final ProcessCompensateService processCompensateService;
+    private final ProcessStartService processStartService;
     private final RedisBizLock redisBizLock;
     private final StringRedisTemplate stringRedisTemplate;
     private final TransactionTemplate transactionTemplate;
@@ -105,6 +107,7 @@ public class TicketServiceImpl implements TicketService {
             }
         }
         String aftersaleNo = nextAftersaleNo();
+        String processDefKey = ProcessDefKey.fromTicketType(dto.getType()).getKey();
         TicketVO vo;
         try {
             vo = transactionTemplate.execute(status -> {
@@ -130,6 +133,14 @@ public class TicketServiceImpl implements TicketService {
                     return null;
                 }
                 insertLog(aftersaleNo, operator, TicketAction.APPLY, null, TicketStatus.PENDING.getCode(), dto.getReason());
+                // 同事务入队：请求内不 Feign process/start；提交后异步起流程再发通知
+                processStartService.enqueue(
+                        aftersaleNo,
+                        processDefKey,
+                        order.getUserId(),
+                        operator.getUsername(),
+                        operator.getRole(),
+                        dto.getReason());
                 return toVO(row, false);
             });
         } finally {
@@ -145,30 +156,8 @@ public class TicketServiceImpl implements TicketService {
             }
             throw new BizException(ErrorEnum.CONFLICT);
         }
-        // 流程启动在本地事务外：失败则补偿删单，避免无流程的脏售后单
-        try {
-            ProcessStartDTO start = new ProcessStartDTO();
-            start.setBusinessKey(aftersaleNo);
-            start.setProcessDefKey(ProcessDefKey.fromTicketType(dto.getType()).getKey());
-            start.setApplicantUserId(order.getUserId());
-            start.setOperator(operator.getUsername());
-            start.setRole(operator.getRole());
-            start.setRemark(dto.getReason());
-            ProcessInstanceVO process = R.unwrap(processFeignClient.start(start));
-            Ticket row = requireAftersale(aftersaleNo);
-            row.setProcessInstanceId(process.getProcessInstanceId());
-            // 流程已起：同事务写 processInstanceId + outbox，随后由 Sender 投递
-            transactionTemplate.execute(status -> {
-                ticketMapper.updateById(row);
-                aftersaleNotifyPublisher.publish(row, TicketAction.APPLY);
-                return null;
-            });
-            vo.setProcessInstanceId(process.getProcessInstanceId());
-        } catch (RuntimeException e) {
-            ticketMapper.deleteById(requireAftersale(aftersaleNo).getId());
-            stringRedisTemplate.delete(idemKey);
-            throw e;
-        }
+        // 事务已提交：异步抢跑一次 start，不阻塞 apply 返回（失败留给扫表）
+        CompletableFuture.runAsync(() -> processStartService.tryOnceByAftersaleNo(aftersaleNo));
         return vo;
     }
 
@@ -305,6 +294,10 @@ public class TicketServiceImpl implements TicketService {
             throw new BizException(ErrorEnum.AFTERSALE_STATUS_NOT_ALLOW.getCode(),
                     "仅待审核或待仓库发货可撤销申请");
         }
+        // 流程尚未 start：本地撤单 + 取消启动任务，不打 process
+        if (!StringUtils.hasText(row.getProcessInstanceId())) {
+            return cancelBeforeProcessStarted(row, operator, dto.getRemark(), "用户撤回（流程未启动）");
+        }
         return operate(dto, operator, TicketAction.WITHDRAW);
     }
 
@@ -351,6 +344,20 @@ public class TicketServiceImpl implements TicketService {
                         "仅待审核/待发货/待退款可超时关单");
             }
             int before = status;
+            // 流程未起：只本地关单，取消 start 任务
+            if (!StringUtils.hasText(row.getProcessInstanceId())) {
+                processStartService.cancelIfNew(aftersaleNo, remark);
+                int nextStatus = TicketStatus.REJECTED.getCode();
+                return transactionTemplate.execute(tx -> {
+                    ticketMapper.updateStatus(row.getId(), nextStatus, true, null, null);
+                    stringRedisTemplate.delete(applyIdemKey(row.getOrderNo(), row.getSkuId()));
+                    insertLog(aftersaleNo, system, TicketAction.REJECT, before, nextStatus, remark);
+                    row.setStatus(nextStatus);
+                    row.setActiveFlag(null);
+                    aftersaleNotifyPublisher.publishTimeoutClose(row);
+                    return toVO(row, false);
+                });
+            }
             ProcessActionDTO processDto = new ProcessActionDTO();
             processDto.setBusinessKey(aftersaleNo);
             processDto.setUserId(system.getUserId());
@@ -394,6 +401,7 @@ public class TicketServiceImpl implements TicketService {
     private TicketVO doOperateWithProcess(TicketActionDTO dto, Operator operator, TicketAction action) {
         Ticket row = requireAftersale(dto.getAftersaleNo());
         assertTicketMutable(row);
+        assertProcessStarted(row);
         assertBusinessPermission(row, operator, action);
         int before = row.getStatus() == null ? -1 : row.getStatus();
 
@@ -530,6 +538,39 @@ public class TicketServiceImpl implements TicketService {
         if (TicketStatus.isTerminal(row.getStatus())) {
             throw new BizException(ErrorEnum.PROCESS_ENDED.getCode(), "售后单已终态，禁止修改");
         }
+    }
+
+    /** 异步起流程未完成前，禁止审核/发货等依赖 Activiti 的操作 */
+    private static void assertProcessStarted(Ticket row) {
+        if (!StringUtils.hasText(row.getProcessInstanceId())) {
+            throw new BizException(ErrorEnum.PROCESS_STARTING);
+        }
+    }
+
+    /** 流程尚未 start：本地撤回/关单并取消 process_start_job */
+    private TicketVO cancelBeforeProcessStarted(Ticket row, Operator operator, String remark, String defaultRemark) {
+        String note = StringUtils.hasText(remark) ? remark : defaultRemark;
+        return redisBizLock.execute(LOCK_PREFIX, row.getAftersaleNo(), () -> {
+            Ticket latest = requireAftersale(row.getAftersaleNo());
+            assertTicketMutable(latest);
+            if (StringUtils.hasText(latest.getProcessInstanceId())) {
+                TicketActionDTO dto = new TicketActionDTO();
+                dto.setAftersaleNo(latest.getAftersaleNo());
+                dto.setRemark(note);
+                return operate(dto, operator, TicketAction.WITHDRAW);
+            }
+            processStartService.cancelIfNew(latest.getAftersaleNo(), note);
+            int before = latest.getStatus() == null ? -1 : latest.getStatus();
+            int nextStatus = TicketStatus.CANCELED.getCode();
+            return transactionTemplate.execute(tx -> {
+                ticketMapper.updateStatus(latest.getId(), nextStatus, true, null, null);
+                stringRedisTemplate.delete(applyIdemKey(latest.getOrderNo(), latest.getSkuId()));
+                insertLog(latest.getAftersaleNo(), operator, TicketAction.WITHDRAW, before, nextStatus, note);
+                latest.setStatus(nextStatus);
+                latest.setActiveFlag(null);
+                return toVO(latest, false);
+            });
+        });
     }
 
     private void deleteDraftQuietly(Long userId, String orderNo, Long skuId) {

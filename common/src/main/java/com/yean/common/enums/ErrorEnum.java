@@ -52,6 +52,8 @@ public enum ErrorEnum {
     AFTERSALE_NOT_FOUND(3101, "售后单不存在"),
     AFTERSALE_STATUS_NOT_ALLOW(3102, "当前状态不允许该操作"),
     AFTERSALE_NO_PERMISSION(3103, "无权操作该售后单"),
+    /** 售后单已落库，Activiti 尚未 start 完成 */
+    PROCESS_STARTING(3104, "售后流程启动中，请稍后再试"),
 
     PROCESS_NOT_FOUND(3201, "流程实例不存在"),
     PROCESS_ENDED(3202, "流程已结束，禁止修改"),

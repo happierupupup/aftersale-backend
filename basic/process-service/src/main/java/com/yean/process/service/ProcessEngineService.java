@@ -18,11 +18,13 @@ import com.yean.process.dto.ProcessOperLog;
 import com.yean.process.mapper.ProcessBizMapper;
 import com.yean.process.mapper.ProcessOperLogMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.activiti.engine.ManagementService;
 import org.activiti.engine.RuntimeService;
 import org.activiti.engine.TaskService;
 import org.activiti.engine.runtime.ProcessInstance;
 import org.activiti.engine.task.Task;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -32,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProcessEngineService {
@@ -42,6 +45,10 @@ public class ProcessEngineService {
     private final ProcessBizMapper processBizMapper;
     private final ProcessOperLogMapper processOperLogMapper;
 
+    /**
+     * 启动流程。已存在仍抛 CONFLICT（原语义不变）。
+     * 仅兜底并发双启：insert 撞 {@code uk_business_key} 时删掉本请求孤儿 Activiti 实例，再抛同一 CONFLICT。
+     */
     @Transactional(rollbackFor = Exception.class)
     public ProcessInstanceVO start(ProcessStartDTO dto) {
         ProcessBiz exist = findBiz(dto.getBusinessKey());
@@ -61,7 +68,19 @@ public class ProcessEngineService {
         biz.setBizStatus(ProcessBizStatus.RUNNING.name());
         biz.setCurrentTaskKey(task == null ? null : task.getTaskDefinitionKey());
         biz.setApplicantUserId(dto.getApplicantUserId());
-        processBizMapper.insert(biz);
+        try {
+            processBizMapper.insert(biz);
+        } catch (DuplicateKeyException e) {
+            // 并发：对方已插入；本请求刚起的实例是孤儿，删掉后与「已存在」同语义抛 CONFLICT
+            log.warn("process start race on businessKey={}, drop orphan piid={}",
+                    dto.getBusinessKey(), instance.getId());
+            try {
+                runtimeService.deleteProcessInstance(instance.getId(), "duplicate businessKey race");
+            } catch (Exception ex) {
+                log.warn("delete orphan process failed, piid={}, err={}", instance.getId(), ex.getMessage());
+            }
+            throw new BizException(ErrorEnum.CONFLICT.getCode(), "流程已存在: " + dto.getBusinessKey());
+        }
         insertLog(biz, "START", null, null, task == null ? null : task.getTaskDefinitionKey(),
                 dto.getOperator(), dto.getRole(), dto.getRemark());
         return toVo(biz, task, null);
